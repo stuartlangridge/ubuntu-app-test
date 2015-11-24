@@ -52,7 +52,12 @@ def get_job(server, device):
     p[4] = urllib.urlencode({"device": device, "claim_secret": claim_secret})
     url = urlparse.urlunparse(p)
     fp = urllib.urlopen(url)
-    data = json.load(fp)
+    readdata = fp.read()
+    try:
+        data = json.loads(readdata)
+    except:
+        print "Got no JSON from the server; instead got '%r'" % readdata
+        return
     fp.close()
     if data.get("error"):
         print "Got error from server", data
