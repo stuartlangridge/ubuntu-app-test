@@ -25,6 +25,7 @@ def do_test(params, job):
     print "* Data passed to run this job *"
     print params
     print job
+    print "****************** So we will want to download %s" % (job["click"], )
     print "****************** This needs to be implemented, and must be synchronous."
     print "****************** We fake it by waiting four seconds."
     time.sleep(4)

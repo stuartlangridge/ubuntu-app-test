@@ -1,5 +1,5 @@
 import os, datetime, codecs, random, string, json, re
-from flask import Flask, render_template, request, url_for, abort, redirect
+from flask import Flask, render_template, request, url_for, abort, redirect, send_from_directory
 from werkzeug import secure_filename
 
 fp = open("claim_secret") # this needs to exist. Put a long random string in it.
@@ -64,7 +64,7 @@ def upload():
         fp.close()
         return redirect(url_for('status', uid=ndir))
     else:
-        return "failure."
+        return "failure.", 400
 
 @app.route("/status/<uid>")
 def status(uid):
@@ -72,7 +72,7 @@ def status(uid):
     folder = os.path.join(app.config["UPLOAD_FOLDER"], safe_uid)
     ometa = os.path.join(folder, "metadata.json")
     if not os.path.exists(ometa):
-        return "No such pending test"
+        return "No such pending test", 404
     fp = codecs.open(ometa, encoding="utf8")
     metadata = fp.read()
     fp.close()
@@ -83,9 +83,9 @@ def status(uid):
 def claim():
     device = request.args.get('device')
     if not device:
-        return json.dumps({"error": "No device specified"})
+        return json.dumps({"error": "No device specified"}), 400, {'Content-Type': 'application/json'}
     if request.args.get("claim_secret") != claim_secret:
-        return json.dumps({"error": "Bad claim secret"})
+        return json.dumps({"error": "Bad claim secret"}), 400, {'Content-Type': 'application/json'}
     if device not in [x["printable"] for x in KNOWN_DEVICES]:
         KNOWN_DEVICES.append({"printable": device, "code": slugify(device)})
     device_code = [x["code"] for x in KNOWN_DEVICES if x["printable"] == device][0]
@@ -111,34 +111,35 @@ def claim():
                             "click": url_for("click", uid=fol),
                             "finished": url_for("finished", uid=fol, device_code=device_code),
                             "metadata": metadata
-                        })
-    return json.dumps({"job": None})
+                        }), 200, {'Content-Type': 'application/json'}
+    return json.dumps({"job": None}), 200, {'Content-Type': 'application/json'}
 
 @app.route("/click/<uid>")
 def click(uid):
     safe_uid = secure_filename(uid)
     folder = os.path.join(app.config["UPLOAD_FOLDER"], safe_uid)
     ometa = os.path.join(folder, "metadata.json")
-    ostatus = os.path.join(folder, "status")
     if not os.path.exists(ometa):
-        return "No such pending test"
+        return "No such pending test", 404
     fp = codecs.open(ometa, encoding="utf8")
     metadata = fp.read()
     fp.close()
     metadata = json.loads(metadata)
-    return "SERVING:"+os.path.join(folder, metadata["filename"])
+    if not os.path.exists(os.path.join(folder, metadata["filename"])):
+        return "No such click", 404
+    return send_from_directory(folder, metadata["filename"], as_attachment=True)
 
 @app.route("/finished/<uid>/<device_code>")
 def finished(uid, device_code):
     device_printable = [x["printable"] for x in KNOWN_DEVICES if x["code"] == device_code]
     if not device_printable:
-        return "Bad device code"
+        return json.dumps({"error": "Bad device code"}), 400, {'Content-Type': 'application/json'}
     device = device_printable[0]
     safe_uid = secure_filename(uid)
     folder = os.path.join(app.config["UPLOAD_FOLDER"], safe_uid)
     ometa = os.path.join(folder, "metadata.json")
     if not os.path.exists(ometa):
-        return "No such pending test"
+        return json.dumps({"error": "No such pending test"}), 400, {'Content-Type': 'application/json'}
     fp = codecs.open(ometa, encoding="utf8")
     metadata = json.load(fp)
     fp.close()
@@ -151,10 +152,10 @@ def finished(uid, device_code):
                 fp = codecs.open(ometa, mode="w", encoding="utf8")
                 json.dump(metadata, fp)
                 fp.close()
-                return json.dumps({"status": "finished"})
+                return json.dumps({"status": "finished"}), 200, {'Content-Type': 'application/json'}
             else:
-                return json.dumps({"error": "Job not in state 'claimed' (in state '%s')" % ds["status"]})
-    return json.dumps({"error": "No such job"})
+                return json.dumps({"error": "Job not in state 'claimed' (in state '%s')" % ds["status"]}), 400, {'Content-Type': 'application/json'}
+    return json.dumps({"error": "No such job"}), 400, {'Content-Type': 'application/json'}
 
 if __name__ == "__main__":
     app.run(port=12346, debug=True)
