@@ -51,6 +51,8 @@ def upload():
                     "printable": device["printable"],
                     "status": "pending"
                 })
+        if not metadata["devices"]:
+            return "You have to specify at least one device."
         ndir = "%s-%s" % (datetime.datetime.now().strftime("%Y%m%d%H%M%S"), randomstring(10))
         ndirpath = os.path.join(app.config['UPLOAD_FOLDER'], ndir)
         os.mkdir(ndirpath) # should not fail!
