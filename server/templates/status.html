@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Upload{% endblock %}
+{% block content %}
+<h1>Status of your test</h1>
+<ul>
+{% for item in metadata.devices %}
+    <li>{{ item.printable|e }}: {{ item.status|e }}</li>
+{% endfor %}
+</ul>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Upload{% endblock %}
+{% block head %}
+    {{ super() }}
+    <style type="text/css">
+        .important { color: #336699; }
+    </style>
+{% endblock %}
+{% block content %}
+<h1>Upload your click</h1>
+<form action="upload" method="POST" enctype="multipart/form-data">
+    <p><input type="file" name="click"></p>
+    <p><label>Email: <input type="email" name="email"></label></p>
+    <p>Devices to test on:</p>
+    <ul>
+        {% for device in devices %}
+            <li><label>{{ device.printable|e }} <input type="checkbox" name="device_{{ device.code|e }}"></label></li>
+        {% endfor %}
+    </ul>
+    <p><input type=submit value="Upload"></p>
+</form>
+{% endblock %}
