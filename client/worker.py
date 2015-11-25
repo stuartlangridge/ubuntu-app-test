@@ -93,6 +93,8 @@ def check_forever(server, device, test_params):
                 wait_time = wait_time * 2
                 if wait_time > 250: wait_time = 250
                 continue
+        except KeyboardInterrupt:
+            break
         except:
             print "Error when running a worker: waiting %s seconds and trying again" % wait_time
             traceback.print_exc(file=sys.stdout)

@@ -1,4 +1,4 @@
-import os, datetime, codecs, random, string, json, re
+import os, datetime, codecs, random, string, json, re, time
 from flask import Flask, render_template, request, url_for, abort, redirect, send_from_directory
 from werkzeug import secure_filename
 
@@ -30,9 +30,24 @@ def randomstring(N):
 def slugify(s):
     return re.sub(r"[^A-Za-z0-9]", "_", s)
 
+def prune_known_devices():
+    global KNOWN_DEVICES
+    now = time.time()
+    binned = []
+    keep = []
+    for k in KNOWN_DEVICES:
+        if now - k["seen"] > 300:
+            binned.append(k)
+        else:
+            keep.append(k)
+    KNOWN_DEVICES = keep
+    if binned:
+        print "Removed devices for age:", ",".join(['"%s"' % x["printable"] for x in binned])
+
 ####################### routes
 @app.route("/")
 def frontpage():
+    prune_known_devices()
     return render_template("upload.html", devices=KNOWN_DEVICES)
 
 @app.route("/upload", methods=["POST"])
@@ -86,8 +101,16 @@ def claim():
         return json.dumps({"error": "No device specified"}), 400, {'Content-Type': 'application/json'}
     if request.args.get("claim_secret") != claim_secret:
         return json.dumps({"error": "Bad claim secret"}), 400, {'Content-Type': 'application/json'}
+
+    prune_known_devices()
+
     if device not in [x["printable"] for x in KNOWN_DEVICES]:
         KNOWN_DEVICES.append({"printable": device, "code": slugify(device)})
+
+    for d in KNOWN_DEVICES:
+        if d["printable"] == device:
+            d["seen"] = time.time()
+
     device_code = [x["code"] for x in KNOWN_DEVICES if x["printable"] == device][0]
     # find the next unclaimed item which wants this device
     # this is a bit racy, but shouldn't be a problem in practice
