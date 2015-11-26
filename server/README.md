@@ -6,6 +6,7 @@
     source ./venv/bin/activate
     pip install Flask
     pip install supervisor
+    pip install uwsgi
 
 ## running the server
 
