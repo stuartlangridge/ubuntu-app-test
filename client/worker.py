@@ -24,7 +24,7 @@ def do_provision(device):
     print "**** Provisioning device ******"
     print device
     #provision_cmd = "./provision -s " + device + " -w -n $HOME/.ubuntu-ci/wifi.conf"
-    provision_cmd = "./provision -s " + device
+    provision_cmd = "./provision -s " + device + " -w -n $HOME/.ubuntu-ci/wifi.conf"
     print provision_cmd
     subprocess.call(provision_cmd, shell=True)
 
@@ -40,7 +40,7 @@ def do_test(params, job):
     # e.g. ./runtest /click/20151126103906-PLBRWIBL9X 0050aba613958223 mako portait
     runtest_cmd = "./runtest " + job["click"] + " " + params[0] + " " + params[1] + " " + params[2]
     print runtest_cmd
-    #subprocess.call(runtest_cmd, shell=True)
+    subprocess.call(runtest_cmd, shell=True)
     time.sleep(30)
     return True, {"screenshot": "whatever", "logfile": "whatever"}
 

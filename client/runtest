@@ -83,8 +83,10 @@ else
     #clean out .desktop files from device so there's only one from our app (ugh)
     # FIXME: derive the desktop file name or some other way but this works :S
     adb -s $DEVICEID shell rm /home/phablet/.local/share/applications/*.desktop
+    pause 10
     echo `date` Installing $FILENAME
     adb -s $DEVICEID shell pkcon -p -y -v install-local --allow-untrusted $TARGET/$FILENAME | tee -a $RESULTSDIR/install.log
+    pause 10
 fi
 
 echo $(date +%Y%m%d%H%M%S) Launching app
@@ -96,7 +98,7 @@ echo $DESKTOP
 # Trim desktop filename
 LAUNCH=$(basename $DESKTOP | sed 's/.desktop//')
 #adb -s $DEVICEID shell sudo -u phablet -i start application APP_ID=$LAUNCH 2>&1 | tee -a $RESULTSDIR/launch.log
-adb -s $DEVICEID shell "start application APP_ID=$LAUNCH" 2>&1 | tee -a $RESULTSDIR/launch.log
+adb -s $DEVICEID shell "ubuntu-app-launch $LAUNCH" 2>&1 | tee -a $RESULTSDIR/launch.log
 # Wait for 10 seconds after launch
 pause 10
 
@@ -109,7 +111,7 @@ screen_grab
 get_logs
 
 # stop app
-adb -s $DEVICEID shell stop application $LAUNCH
+adb -s $DEVICEID shell "ubuntu-app-stop $LAUNCH"
 
 # list the files we got
 

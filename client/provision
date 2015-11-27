@@ -239,10 +239,8 @@ retry 60 5 phablet-network -n $NETWORK_FILE
 log "DISABLE WELCOME WIZARD"
 phablet-config welcome-wizard --disable
 
-if [ -n "$CUSTOMIZE" ] ; then
-    log "CUSTOMIZING IMAGE"
-    phablet-config writable-image -r ${PHABLET_PASSWORD} $CUSTOMIZE
-fi
+log "MAKE IMAGE WRITABLE"
+phablet-config writable-image -r ${PHABLET_PASSWORD} $CUSTOMIZE
 
 log "SETTING UP SUDO"
 adb -s $DEVICEID shell "echo ${PHABLET_PASSWORD} |sudo -S bash -c 'echo phablet ALL=\(ALL\) NOPASSWD: ALL > /etc/sudoers.d/phablet && chmod 600 /etc/sudoers.d/phablet'"
@@ -251,17 +249,6 @@ adb -s $DEVICEID shell "echo ${PHABLET_PASSWORD} |sudo -S bash -c 'echo phablet 
 #phablet-config edges-intro --disable
 
 adb -s $DEVICEID  shell "sudo dbus-send --system --print-reply --dest=org.freedesktop.Accounts /org/freedesktop/Accounts/User32011 org.freedesktop.DBus.Properties.Set string:com.canonical.unity.AccountsService string:demo-edges variant:boolean:false"
-
-if [ -n "${SKIP_CLICK}" ]; then
-    log "SKIPPING CLICK PACKAGE SETUP AS REQUESTED"
-else
-    log "SETTING UP CLICK PACKAGES"
-    CLICK_TEST_OPTS=""
-    channel_name=$(adb shell "sudo system-image-cli -i | sed -n -e 's/channel: \(.*\)/\1/p' | paste -s -d:")
-    # Before running phablet-click-test setup, we need to make sure the
-    # session is available
-    retry 60 5 ./adb-shell 'sudo -iu phablet env |grep UPSTART_SESSION=unix'
-fi
 
 # get our target-based utilities into our PATH
 # adb push ${BASEDIR}/../utils/target /home/phablet/bin
@@ -273,3 +260,13 @@ fi
 adb -s $DEVICEID shell sudo stop powerd
 adb -s $DEVICEID shell powerd-cli display on &
 adb -s $DEVICEID shell gsettings set com.ubuntu.touch.system activity-timeout 0
+
+# remove all pre-installed click packages
+# The tr in the bit below has a tab in the first pair of quotes!
+#adb -s $DEVICEID shell click list |  tr "	" " " | while read line
+adb -s $DEVICEID shell click list |  cut -f1 -d"	" | while read line
+do
+  REMOVECLICK="adb -s $DEVICEID shell sudo click unregister $line"
+  echo "$REMOVECLICK"
+  $REMOVECLICK
+done
