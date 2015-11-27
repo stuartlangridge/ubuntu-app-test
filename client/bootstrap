@@ -1,0 +1,82 @@
+#!/bin/bash
+
+DATESTART=$(date +%Y%m%d%H%M%S)
+LOGDIR="$HOME/scripts/logs/$DATESTART"
+LOGFILE=$LOGDIR/bootstrap.log
+# Default orientation for all devices, dunno how we detect this yet
+# Maybe we flash it then poke some dbus thing
+ORIENTATION="portrait"
+PROTOCOL="http://"
+SERVERHOST="marvin.popey.com"
+CURRENTDIR=$(pwd)
+
+mkdir -p $LOGDIR
+echo $LOGFILE
+
+# Functions
+
+log() {
+	echo $*
+	echo $* >> $LOGFILE
+}
+
+get_product_name(){
+	# Obtain the code name "mako/krillin/arale" from the device
+  PRODUCTID=$(adb -s $DEVICEID shell getprop ro.product.device | tr -d "\r")
+}
+
+set_friendly_name() {
+	# Create user facing friendly name for device
+	case $PRODUCTID in
+		mako)
+			FRIENDLYNAME="Nexus_4"
+			;;
+		krillin)
+			FRIENDLYNAME="bq_Aquaris_E4.5"
+		  ;;
+	  vegetahd)
+			FRIENDLYNAME="bq_Aquaris_E5"
+			;;
+		flo)
+			FRIENDLYNAME="Nexus_7_(2013)"
+			;;
+		arale)
+			FRIENDLYNAME="Meizu_MX4"
+			;;
+		*)
+			FRIENDLYNAME="Unidentified_Device"
+			;;
+	esac
+}
+
+# Identify all the devices attached (assume they exist)
+
+DEVICES="N"
+for DEVICEID in `adb devices | grep -v "List" | awk '{print $1}'`
+do
+	DEVICES="Y"
+	log "Device found: $DEVICEID"
+	get_product_name
+	log "Product: $PRODUCTID"
+	set_friendly_name
+	log "Friendly name: $FRIENDLYNAME"
+	# We call the worker with the friendly name (for it to pass to the server),
+	# the device ID so it knows which attached device to hand jobs off to,
+	# the product ID in case there are specific notes to inform the user about
+	# (e.g. SDL2 is known broken on mako),
+	# the orientation, so we may have multiple divices in different orientations
+  CMD="python ./worker.py --server=$PROTOCOL$SERVERHOST --device=$FRIENDLYNAME $DEVICEID $PRODUCTID $ORIENTATION"
+	echo $CMD
+	# Next command should be backgrounded, but for one device and debuging we won't
+	$CMD
+done
+
+# If no devices are found, we spit out a status and die
+# Ideally we should reboot the device assuming there is one
+# but can't, because it's inaccessible. (need usb switch thing)
+
+if [ "$DEVICES" == "N" ];
+then
+	log "ERROR: No devices found, aborting"
+	exit 1
+fi

@@ -1,0 +1,9 @@
+#!/usr/bin/env python
+
+import os
+from phabletutils.environment import detect_device
+
+device_type = os.environ.get('DEVICE_TYPE')
+if device_type is None:
+    device_type = detect_device(None)
+print(device_type)

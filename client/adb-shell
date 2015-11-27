@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# The "adb shell" command doesn't return an error if the command you execute
+# resulted in an error. This is a wrapper to return the command's true return code.
+
+# NOTE: This script uses some specific bash'isms to keep things short and simple
+
+set -eu
+
+pat='ADB_RC=([[:digit:]]+)'
+
+{
+	if ! adb shell "$* ; echo ADB_RC=\$?" ; then
+		adb wait-for-device
+        	adb shell "$* ; echo ADB_RC=\$?"
+	fi
+} | while read line; do
+	echo $line
+	if [[ $line =~ $pat ]] ; then
+		rc=${BASH_REMATCH[1]}
+		exit $rc
+	fi
+done
