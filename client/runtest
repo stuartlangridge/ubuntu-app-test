@@ -56,8 +56,12 @@ function screen_grab {
 }
 
 function get_logs {
+  # Get data about the version of ubuntu on the device
+  adb -s $DEVICEID shell "system-image-cli --info" > $RESULTSDIR/device-version.txt
+  # Get the application log
   adb -s $DEVICEID pull $TARGET/.cache/upstart/application-click-$LAUNCH.log $RESULTSDIR/application-log.txt
-  # FIXME: Get dmesg/kernel output here
+  # Get kernel output associated with the app
+  adb -s $DEVICEID shell "sudo dmesg -T | grep $LAUNCH" > $RESULTSDIR/dmesg.txt
 }
 
 echo $CLICK_URL
@@ -73,7 +77,7 @@ DESKTOPFILE=$(echo $FILENAME | tr '-' '_')
 
 click-review $FILE | tee -a $RESULTSDIR/click-review.txt
 
-if [ $? -ne 0 ]; then
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
   echo "Click review of $FILE failed"
 else
   echo $(date +%Y%m%d%H%M%S) Pushing $FILE to $TARGET
@@ -98,6 +102,8 @@ else
   DESKTOP=$($GETDESKTOP)
   # Trim desktop filename
   LAUNCH=$(basename $DESKTOP | sed 's/.desktop//')
+  # shut off the network
+  adb -s $DEVICEID shell nmcli n off
   #adb -s $DEVICEID shell sudo -u phablet -i start application APP_ID=$LAUNCH 2>&1 | tee -a $RESULTSDIR/launch.log
   adb -s $DEVICEID shell "ubuntu-app-launch $LAUNCH" 2>&1 | tee -a $RESULTSDIR/launch.txt
   # Get initial screenshot
@@ -106,10 +112,10 @@ else
   screen_grab 2
   pause 5
   screen_grab 3
-  # Get logs
-  get_logs
   # stop app
   adb -s $DEVICEID shell "ubuntu-app-stop $LAUNCH"
+  # Get logs
+  get_logs
 fi
 # Delete any empty files (i.e. logs) so we don't email zero size files
 find $RESULTSDIR -size  0 -print0 |xargs -0 rm
