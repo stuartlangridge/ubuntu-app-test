@@ -10,7 +10,7 @@ The other parameters are passed to the do_test() function, which uses them to kn
     which USB port its device is on, etc.
 """
 
-import argparse, traceback, sys, urllib, urlparse, time, json, subprocess, tempfile
+import argparse, traceback, sys, urllib, urlparse, time, json, subprocess, tempfile, signal
 import smtplib, json, codecs
 from os.path import basename
 from email.mime.application import MIMEApplication
@@ -133,8 +133,10 @@ def get_job(server, device):
     if not data.get("job"): return
     return data
 
+wait_time = 1
+
 def check_forever(server, device, test_params):
-    wait_time = 1
+    global wait_time
     while 1:
         try:
             job = get_job(server, device)
@@ -175,10 +177,14 @@ def check_forever(server, device, test_params):
             if wait_time > 250: wait_time = 250
         print "Worker running again"
 
-
+def hup(signum, stack):
+    global wait_time
+    wait_time = 1
+    print "Got sent SIGHUP; resetting wait_time to 1"
 
 if __name__ == "__main__":
     print "Worker starting up..."
+    signal.signal(signal.SIGHUP, hup)
     parser = argparse.ArgumentParser(description='The ubuntu-app-test worker.')
     parser.add_argument('params', metavar='N', nargs="*",
                    help='parameters to pass to the do_test function')
