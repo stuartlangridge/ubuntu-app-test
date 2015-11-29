@@ -107,5 +107,6 @@ else
   # stop app
   adb -s $DEVICEID shell "ubuntu-app-stop $LAUNCH"
 fi
-
+# Delete any empty files (i.e. logs) so we don't email zero size files
+find $RESULTSDIR -size  0 -print0 |xargs -0 rm
 rm -rf $TMPDIR
