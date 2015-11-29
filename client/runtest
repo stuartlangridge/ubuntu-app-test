@@ -51,7 +51,7 @@ function screen_grab {
   adb -s $DEVICEID shell "kill -SIGCONT \$(pidof unity8)"
   SILLYFILE=`/usr/bin/adb $ADBOPTS shell ls -1 /tmp/mir_screencast*|tr -d '\r'`
   adb -s $DEVICEID pull "$SILLYFILE" $RESULTSDIR/screenshot.rgba
-  convert -depth 8 -size $SIZE $RESULTSDIR/screenshot.rgba $RESULTSDIR/screenshot.png
+  convert -depth 8 -size $SIZE $RESULTSDIR/screenshot.rgba $RESULTSDIR/screenshot$1.png
   rm $RESULTSDIR/screenshot.rgba
 }
 
@@ -96,8 +96,12 @@ else
   LAUNCH=$(basename $DESKTOP | sed 's/.desktop//')
   #adb -s $DEVICEID shell sudo -u phablet -i start application APP_ID=$LAUNCH 2>&1 | tee -a $RESULTSDIR/launch.log
   adb -s $DEVICEID shell "ubuntu-app-launch $LAUNCH" 2>&1 | tee -a $RESULTSDIR/launch.txt
-  # Get screenshot
-  screen_grab
+  # Get initial screenshot
+  screen_grab 0
+  pause 5
+  screen_grab 1
+  pause 5
+  screen_grab 2
   # Get logs
   get_logs
   # stop app
