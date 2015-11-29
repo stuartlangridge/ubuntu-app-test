@@ -12,6 +12,7 @@ The other parameters are passed to the do_test() function, which uses them to kn
 
 import argparse, traceback, sys, urllib, urlparse, time, json, subprocess, tempfile, signal
 import smtplib, json, codecs
+import os
 from os.path import basename
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
