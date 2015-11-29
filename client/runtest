@@ -72,7 +72,6 @@ FILENAME=$(basename $FILE)
 DESKTOPFILE=$(echo $FILENAME | tr '-' '_')
 
 click-review $FILE | tee -a $RESULTSDIR/click-review.txt
-echo $?
 
 if [ "$?" != "0"]; then
   echo "Click review of $FILE failed"
