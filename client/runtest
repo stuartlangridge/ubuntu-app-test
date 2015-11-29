@@ -8,12 +8,12 @@ CLICK_URL=$1
 DEVICEID=$2
 DEVICE_TYPE=$3
 ORIENTATION=$4
+RESULTSDIR=$5
 TMPDIR=$(mktemp -d)
 TARGETUSER="phablet"
 TARGET="/home/$TARGETUSER"
 HERE=$(pwd)
 SERVERHOST="http://marvin.popey.com"
-RESULTSDIR=$TMPDIR/results
 
 function pause {
     echo "Waiting $1"
@@ -56,7 +56,8 @@ function screen_grab {
 }
 
 function get_logs {
-  adb -s $DEVICEID pull $TARGET/.cache/upstart/application-click-$LAUNCH.log $RESULTSDIR
+  adb -s $DEVICEID pull $TARGET/.cache/upstart/application-click-$LAUNCH.log $RESULTSDIR/application-log.txt
+  # FIXME: Get dmesg/kernel output here
 }
 
 echo $CLICK_URL
@@ -70,46 +71,37 @@ FILE=$(ls $TMPDIR/*.click)
 FILENAME=$(basename $FILE)
 DESKTOPFILE=$(echo $FILENAME | tr '-' '_')
 
-echo $(date +%Y%m%d%H%M%S) Running click-review tools on $FILE
-click-review $FILE | tee -a $RESULTSDIR/click-review.log
+click-review $FILE | tee -a $RESULTSDIR/click-review.txt
 echo $?
 
-echo $(date +%Y%m%d%H%M%S) Pushing $FILE to $TARGET
-# Send the click package to the device
-adb -s $DEVICEID push $FILE $TARGET
-if [ "$?" != "0" ]; then
-    echo `date` Push failed
+if [ "$?" != "0"]; then
+  echo "Click review of $FILE failed"
 else
+  echo $(date +%Y%m%d%H%M%S) Pushing $FILE to $TARGET
+  # Send the click package to the device
+  adb -s $DEVICEID push $FILE $TARGET
+  if [ "$?" != "0" ]; then
+      echo `date` Push failed
+  else
     #clean out .desktop files from device so there's only one from our app (ugh)
     # FIXME: derive the desktop file name or some other way but this works :S
     adb -s $DEVICEID shell rm /home/phablet/.local/share/applications/*.desktop
     echo `date` Installing $FILENAME
-    adb -s $DEVICEID shell pkcon -p -y -v install-local --allow-untrusted $TARGET/$FILENAME | tee -a $RESULTSDIR/install.log
+    adb -s $DEVICEID shell pkcon -p -y -v install-local --allow-untrusted $TARGET/$FILENAME | perl -pe 's/\x1b\[[0-9;]*[mG]//g' | tee -a $RESULTSDIR/install.txt
+  fi
+  # Get desktop file name
+  GETDESKTOP="adb -s $DEVICEID shell ls -tr $TARGET/.local/share/applications/*.desktop | tail -n 1 | tr -d '\r' | tr -d '\n'"
+  DESKTOP=$($GETDESKTOP)
+  # Trim desktop filename
+  LAUNCH=$(basename $DESKTOP | sed 's/.desktop//')
+  #adb -s $DEVICEID shell sudo -u phablet -i start application APP_ID=$LAUNCH 2>&1 | tee -a $RESULTSDIR/launch.log
+  adb -s $DEVICEID shell "ubuntu-app-launch $LAUNCH" 2>&1 | tee -a $RESULTSDIR/launch.txt
+  # Get screenshot
+  screen_grab
+  # Get logs
+  get_logs
+  # stop app
+  adb -s $DEVICEID shell "ubuntu-app-stop $LAUNCH"
 fi
 
-echo $(date +%Y%m%d%H%M%S) Launching app
-# Get desktop file name
-GETDESKTOP="adb -s $DEVICEID shell ls -tr $TARGET/.local/share/applications/*.desktop | tail -n 1 | tr -d '\r' | tr -d '\n'"
-echo $GETDESKTOP
-DESKTOP=$($GETDESKTOP)
-echo $DESKTOP
-# Trim desktop filename
-LAUNCH=$(basename $DESKTOP | sed 's/.desktop//')
-echo "*"$LAUNCH"*"
-#adb -s $DEVICEID shell sudo -u phablet -i start application APP_ID=$LAUNCH 2>&1 | tee -a $RESULTSDIR/launch.log
-adb -s $DEVICEID shell "ubuntu-app-launch $LAUNCH" 2>&1 | tee -a $RESULTSDIR/launch.log
-
-# Get screenshot
-
-screen_grab
-
-# Get logs
-
-get_logs
-
-# stop app
-adb -s $DEVICEID shell "ubuntu-app-stop $LAUNCH"
-
-# list the files we got
-
-ls -ltr $RESULTSDIR
+rm -rf $TMPDIR

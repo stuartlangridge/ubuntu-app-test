@@ -10,7 +10,13 @@ The other parameters are passed to the do_test() function, which uses them to kn
     which USB port its device is on, etc.
 """
 
-import argparse, traceback, sys, urllib, urlparse, time, json, subprocess
+import argparse, traceback, sys, urllib, urlparse, time, json, subprocess, tempfile
+import smtplib, json, codecs
+from os.path import basename
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import COMMASPACE, formatdate
 
 fp = open("claim_secret") # this needs to exist. Put a long random string in it.
 claim_secret = fp.read()
@@ -29,6 +35,7 @@ def do_provision(device):
     subprocess.call(provision_cmd, shell=True)
 
 def do_test(params, job):
+    resultsdir = tempfile.mktemp(prefix="tmp")
     print "****************** Actually running the test."
     print "* Data passed to run this job *"
     print params
@@ -37,18 +44,65 @@ def do_test(params, job):
     print "****************** This is implemented in runtest bash script."
     print "****************** Which should move to this python script ASAP"
     # We pass the url to the click, device serial number and type and orientation
-    # e.g. ./runtest /click/20151126103906-PLBRWIBL9X 0050aba613958223 mako portait
-    runtest_cmd = "./runtest " + job["click"] + " " + params[0] + " " + params[1] + " " + params[2]
+    # e.g. ./runtest /click/20151126103906-PLBRWIBL9X 0050aba613958223 mako portait /tmp/foo
+    runtest_cmd = "./runtest " + job["click"] + " " + params[0] + " " + params[1] + " " + params[2] + " " + resultsdir
     print runtest_cmd
     subprocess.call(runtest_cmd, shell=True)
-    time.sleep(30)
-    return True, {"screenshot": "whatever", "logfile": "whatever"}
+    return True, {"resultsdir": resultsdir}
+
+def send_email(from_address, from_name, from_password, to_addresses, subject, text_body, html_body, attached_files=None):
+    # Create the email
+    if from_name:
+        send_from = '"%s" <%s>' % (from_name, from_address)
+    else:
+        send_from = from_address
+    msg = MIMEMultipart("related")
+    msg["From"] = send_from
+    msg["To"] = COMMASPACE.join(to_addresses)
+    msg["Date"] = formatdate(localtime=True)
+    msg["Subject"] = subject
+
+    alt = MIMEMultipart("alternative")
+    alt.attach(MIMEText(text_body, "plain"))
+    alt.attach(MIMEText(html_body, "html"))
+    msg.attach(alt)
+
+    for f in attached_files or []:
+        with open(f, "rb") as fil:
+            msg.attach(MIMEApplication(
+                fil.read(),
+                Content_Disposition='attachment; filename="%s"' % basename(f),
+                Name=basename(f)
+            ))
+    session = smtplib.SMTP('smtp.gmail.com', 587)
+    session.ehlo()
+    session.starttls()
+    session.login(from_address, from_password)
+    session.sendmail(from_address, to_addresses, msg.as_string())
+    print msg.as_string()
 
 def deal_with_results(job, results):
     print "Now deal with the results. For example, you may want to email these results:"
     print results
-    print "to this email address:"
+    applicationlog = results["resultsdir"] + "/application-log.txt"
+    reviewlog = results["resultsdir"] + "/click-review.txt"
+    installlog = results["resultsdir"] + "/install.txt"
+    launchlog = results["resultsdir"] + "/launch.txt"
+    screenshot = results["resultsdir"] + "/screenshot.png"
     print job["metadata"]["email"]
+    fp = codecs.open("creds.json") # has username, name, password keys
+    creds = json.load(fp)
+    fp.close()
+    send_email(
+        from_address=creds["username"],
+        from_name=creds.get("name"),
+        from_password=creds["password"],
+        to_addresses=[job["metadata"]["email"]],
+        subject="Your application results from Marvin",
+        text_body="Please find attached the results of your application run...",
+        html_body="<html><body>Please find attached the results of your application run...",
+        attached_files=[reviewlog, installlog, launchlog, screenshot, applicationlog]
+    )
 
 ############################################################################################
 # Parts that can be left alone

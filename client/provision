@@ -6,8 +6,6 @@ set -e
 DEVICEID=$2
 BASEDIR=$(dirname $(readlink -f $0))
 export PATH=${BASEDIR}/../utils/host:${PATH}
-
-RESDIR=`pwd`/clientlogs
 RECOVERY_URL="http://people.canonical.com/~alan/touch"
 
 NETWORK_FILE="${NETWORK_FILE-${HOME}/.ubuntu-ci/wifi.conf}"
@@ -35,30 +33,6 @@ OPTIONS:
   -w    make the system writeable (implied with -p and -P arguments)
 
 EOF
-}
-
-## remove if no needed
-image_info() {
-    # mark the version we installed in /home/phablet/.ci-[uuid,flash-args]
-    # adb shell messes up \n's with \r\n's so do the whole of the regex on the target
-    IMAGEVER=$(adb shell "sudo system-image-cli -i | sed -n -e 's/version version: \([0-9]*\)/\1/p' -e 's/version ubuntu: \([0-9]*\)/\1/p' -e 's/version device: \([0-9]*\)/\1/p' | paste -s -d:")
-    CHAN=$(adb shell "sudo system-image-cli -i | sed -n -e 's/channel: \(.*\)/\1/p' | paste -s -d:")
-    REV=$(echo $IMAGEVER | cut -d: -f1)
-    echo "$IMAGE_OPT" | grep -q "\-\-revision" || REVISION="--revision=${REV}"
-    echo "$IMAGE_OPT" | grep -q "\-\-channel" || IMAGE_OPT="${IMAGE_OPT} --channel $CHAN"
-    adb -s $DEVICEID shell "echo '${IMAGEVER}' > /home/phablet/.ci-version"
-    echo $UUID > $RESDIR/.ci-uuid
-    adb -s $DEVICEID push $RESDIR/.ci-uuid /home/phablet/
-    cat > $RESDIR/.ci-flash-args <<EOF
-$IMAGE_OPT
-EOF
-    adb -s $DEVICEID push $RESDIR/.ci-flash-args /home/phablet/.ci-flash-args
-    cat > $RESDIR/.ci-flash-server <<EOF
-$IMAGE_SERVER
-EOF
-    adb -s $DEVICEID push $RESDIR/.ci-flash-args /home/phablet/.ci-flash-server
-    echo $CUSTOMIZE > $RESDIR/.ci-customizations
-    adb -s $DEVICEID push $RESDIR/.ci-customizations /home/phablet/.ci-customizations
 }
 
 log() {
@@ -227,9 +201,6 @@ if [ ! -f $NETWORK_FILE ] ; then
     exit 1
 fi
 
-[ -d $RESDIR ] && rm -rf $RESDIR
-mkdir -p $RESDIR
-
 full_flash
 
 log "SETTING UP WIFI"
@@ -253,7 +224,6 @@ adb -s $DEVICEID  shell "sudo dbus-send --system --print-reply --dest=org.freede
 # get our target-based utilities into our PATH
 # adb push ${BASEDIR}/../utils/target /home/phablet/bin
 
-#image_info
 #set_hwclock
 
 ./unlock-device

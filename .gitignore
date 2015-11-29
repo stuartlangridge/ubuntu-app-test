@@ -2,3 +2,5 @@ claim_secret
 server/uploads/*
 server/venv
 server.pyc
+client/creds.json
+

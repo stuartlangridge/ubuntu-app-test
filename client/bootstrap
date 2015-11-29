@@ -1,4 +1,5 @@
 #!/bin/bash
+# bootstrap script which seeks devices and launches one worker per device
 
 DATESTART=$(date +%Y%m%d%H%M%S)
 LOGDIR="$HOME/scripts/logs/$DATESTART"
@@ -9,11 +10,6 @@ ORIENTATION="portrait"
 PROTOCOL="http://"
 SERVERHOST="marvin.popey.com"
 CURRENTDIR=$(pwd)
-
-mkdir -p $LOGDIR
-echo $LOGFILE
-
-# Functions
 
 log() {
 	echo $*
@@ -48,6 +44,8 @@ set_friendly_name() {
 			;;
 	esac
 }
+
+mkdir -p $LOGDIR
 
 # Identify all the devices attached (assume they exist)
 
