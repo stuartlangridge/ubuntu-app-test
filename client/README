@@ -1,0 +1,9 @@
+WARNING: Running the client will completely and irrecoverably wipe _all_ devices attached to the client computer.
+
+DO NOT RUN WITH A PHONE ATTACHED WHICH CONTAINS DATA YOU WANT TO KEEP!
+
+Launching the client
+
+Run ./bootstrap in the client directory. This will enumerate all devices attached and launch a separate worker for each one.
+
+ 
