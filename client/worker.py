@@ -91,6 +91,7 @@ def deal_with_results(job, results):
     screenshot0 = results["resultsdir"] + "/screenshot0.png"
     screenshot1 = results["resultsdir"] + "/screenshot1.png"
     screenshot2 = results["resultsdir"] + "/screenshot2.png"
+    screenshot3 = results["resultsdir"] + "/screenshot3.png"
     print job["metadata"]["email"]
     fp = codecs.open("creds.json") # has username, name, password keys
     creds = json.load(fp)
@@ -103,7 +104,7 @@ def deal_with_results(job, results):
         subject="Your application results from Marvin",
         text_body="Please find attached the results of your application run...",
         html_body="<html><body>Please find attached the results of your application run...",
-        attached_files=[reviewlog, installlog, launchlog, screenshot0, screenshot1, screenshot2, applicationlog]
+        attached_files=[reviewlog, installlog, launchlog, screenshot0, screenshot1, screenshot2, screenshot3, applicationlog]
     )
 
 ############################################################################################
