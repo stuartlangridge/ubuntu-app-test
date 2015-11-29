@@ -68,12 +68,13 @@ def send_email(from_address, from_name, from_password, to_addresses, subject, te
     msg.attach(alt)
 
     for f in attached_files or []:
-        with open(f, "rb") as fil:
-            msg.attach(MIMEApplication(
-                fil.read(),
-                Content_Disposition='attachment; filename="%s"' % basename(f),
-                Name=basename(f)
-            ))
+        if os.path.exists(f):
+            with open(f, "rb") as fil:
+                msg.attach(MIMEApplication(
+                    fil.read(),
+                    Content_Disposition='attachment; filename="%s"' % basename(f),
+                    Name=basename(f)
+                    ))
     session = smtplib.SMTP('smtp.gmail.com', 587)
     session.ehlo()
     session.starttls()
