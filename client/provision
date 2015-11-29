@@ -240,3 +240,6 @@ do
   echo "$REMOVECLICK"
   $REMOVECLICK
 done
+
+# Refresh Unity (equiv of pull down refresh)
+adb -s $DEVICEID shell dbus-send /com/canonical/unity/scopes com.canonical.unity.scopes.InvalidateResults string:clickscope
