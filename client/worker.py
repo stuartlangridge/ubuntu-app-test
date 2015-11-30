@@ -12,6 +12,7 @@ The other parameters are passed to the do_test() function, which uses them to kn
 
 import argparse, traceback, sys, urllib, urlparse, time, json, subprocess, tempfile, signal
 import smtplib, json, codecs
+import os
 from os.path import basename
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
@@ -68,12 +69,13 @@ def send_email(from_address, from_name, from_password, to_addresses, subject, te
     msg.attach(alt)
 
     for f in attached_files or []:
-        with open(f, "rb") as fil:
-            msg.attach(MIMEApplication(
-                fil.read(),
-                Content_Disposition='attachment; filename="%s"' % basename(f),
-                Name=basename(f)
-            ))
+        if os.path.exists(f):
+            with open(f, "rb") as fil:
+                msg.attach(MIMEApplication(
+                    fil.read(),
+                    Content_Disposition='attachment; filename="%s"' % basename(f),
+                    Name=basename(f)
+                    ))
     session = smtplib.SMTP('smtp.gmail.com', 587)
     session.ehlo()
     session.starttls()
@@ -88,9 +90,12 @@ def deal_with_results(job, results):
     reviewlog = results["resultsdir"] + "/click-review.txt"
     installlog = results["resultsdir"] + "/install.txt"
     launchlog = results["resultsdir"] + "/launch.txt"
+    kernellog = results["resultsdir"] + "/dmesg.txt"
+    deviceversion = results["resultsdir"] + "/device-version.txt"
     screenshot0 = results["resultsdir"] + "/screenshot0.png"
     screenshot1 = results["resultsdir"] + "/screenshot1.png"
     screenshot2 = results["resultsdir"] + "/screenshot2.png"
+    screenshot3 = results["resultsdir"] + "/screenshot3.png"
     print job["metadata"]["email"]
     fp = codecs.open("creds.json") # has username, name, password keys
     creds = json.load(fp)
@@ -103,7 +108,7 @@ def deal_with_results(job, results):
         subject="Your application results from Marvin",
         text_body="Please find attached the results of your application run...",
         html_body="<html><body>Please find attached the results of your application run...",
-        attached_files=[reviewlog, installlog, launchlog, screenshot0, screenshot1, screenshot2, applicationlog]
+        attached_files=[reviewlog, installlog, launchlog, screenshot0, screenshot1, screenshot2, screenshot3, applicationlog, kernellog, deviceversion]
     )
 
 ############################################################################################

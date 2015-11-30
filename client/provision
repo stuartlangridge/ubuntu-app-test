@@ -136,9 +136,11 @@ full_flash() {
     # Most failures appear to be transient and work with an immediate
     # retry.
     retry 10 3 timeout 1800 ubuntu-device-flash ${IMAGE_SERVER} ${REVISION} touch ${RECOVERY} --password $PHABLET_PASSWORD $IMAGE_OPT
+    echo $?
     # If the flashed image fails to install and reboots, wait-for-device
     # will timeout
     timeout 600 adb wait-for-device
+    echo $?
     sleep 60  #give the system a little time
 }
 
@@ -240,3 +242,6 @@ do
   echo "$REMOVECLICK"
   $REMOVECLICK
 done
+
+# Refresh Unity (equiv of pull down refresh)
+adb -s $DEVICEID shell dbus-send /com/canonical/unity/scopes com.canonical.unity.scopes.InvalidateResults string:clickscope
