@@ -1,5 +1,5 @@
-import os, datetime, codecs, random, string, json, re, time
-from flask import Flask, render_template, request, url_for, abort, redirect, send_from_directory
+import os, datetime, codecs, random, string, json, re, time, sqlite3
+from flask import Flask, render_template, request, url_for, abort, redirect, send_from_directory, g
 from werkzeug import secure_filename
 
 fp = open("claim_secret") # this needs to exist. Put a long random string in it.
@@ -14,6 +14,22 @@ KNOWN_DEVICES = []
 ####################### app config
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+DATABASE = os.path.join(os.path.split(__file__)[0], "requests.db")
+
+def get_db():
+    db = getattr(g, '_database', None)
+    if db is None:
+        db = g._database = sqlite3.connect(DATABASE)
+    return db, db.cursor()
+
+with app.app_context():
+    db, crs = get_db()
+    crs.execute(("create table if not exists requests ("
+        "id integer primary key, ip varchar, click_filename varchar time t TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+        ")"))
+    crs.execute("create table if not exists devices (id integer primary key, printable_name varchar unique)")
+    crs.execute("create table if not exists request2device (deviceid integer, requestid integer)")
 
 ####################### utility functions
 def allowed_file(filename):
@@ -77,6 +93,19 @@ def upload():
         fp = codecs.open(ometa, mode="w", encoding="utf8")
         json.dump(metadata, fp)
         fp.close()
+        db, crs = get_db()
+        crs.execute("insert into requests (ip, click_filename) values (?,?)", (request.remote_addr, file.filename))
+        requestid = crs.lastrowid
+        for d in metadata["devices"]:
+            crs.execute("select id from devices where printable_name = ?", (d["printable"],))
+            res = crs.fetchone()
+            if res:
+                deviceid = res[0]
+            else:
+                crs.execute("insert into devices (printable_name) values (?)", (d["printable"],))
+                deviceid = crs.lastrowid
+            crs.execute("insert into request2device (requestid, deviceid) values (?,?)", (requestid, deviceid))
+        db.commit()
         return redirect(url_for('status', uid=ndir))
     else:
         return "failure.", 400

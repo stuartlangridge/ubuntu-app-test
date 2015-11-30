@@ -4,3 +4,4 @@ server/venv
 server.pyc
 client/creds.json
 
+requests.db
