@@ -1,4 +1,4 @@
-import os, datetime, codecs, random, string, json, re, time, sqlite3
+import os, datetime, codecs, random, string, json, re, time, sqlite3, shutil
 from flask import Flask, render_template, request, url_for, abort, redirect, send_from_directory, g
 from werkzeug import secure_filename
 
@@ -223,6 +223,32 @@ def finished(uid, device_code):
             else:
                 return json.dumps({"error": "Job not in state 'claimed' (in state '%s')" % ds["status"]}), 400, {'Content-Type': 'application/json'}
     return json.dumps({"error": "No such job"}), 400, {'Content-Type': 'application/json'}
+
+@app.route("/cleanup")
+def cleanup():
+    remcount = 0
+    keepcount = 0
+    subfols = os.listdir(app.config["UPLOAD_FOLDER"])
+    for fol in subfols:
+        ffol = os.path.join(app.config["UPLOAD_FOLDER"], fol)
+        ometa = os.path.join(ffol, "metadata.json")
+        if os.path.exists(ometa):
+            fp = codecs.open(ometa, encoding="utf8")
+            metadata = fp.read()
+            fp.close()
+            metadata = json.loads(metadata)
+            rem = True
+            for d in metadata.get("devices", []):
+                if d.get("status") != "finished":
+                    rem = False
+                    break
+            if rem:
+                shutil.rmtree(ffol, ignore_errors=True)
+                remcount += 1
+            else:
+                keepcount += 1
+    return "Cleaned up: %s, left untouched: %s" % (remcount, keepcount)
+
 
 if __name__ == "__main__":
     app.run(port=12346, debug=True)
