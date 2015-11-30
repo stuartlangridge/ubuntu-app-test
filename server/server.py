@@ -30,6 +30,13 @@ with app.app_context():
         ")"))
     crs.execute("create table if not exists devices (id integer primary key, printable_name varchar unique)")
     crs.execute("create table if not exists request2device (deviceid integer, requestid integer)")
+    try:
+        crs.execute("alter table requests add column email varchar")
+    except sqlite3.OperationalError as e:
+        if "duplicate column name: email" in e.message:
+            pass
+        else:
+            raise e
 
 ####################### utility functions
 def allowed_file(filename):
@@ -94,7 +101,8 @@ def upload():
         json.dump(metadata, fp)
         fp.close()
         db, crs = get_db()
-        crs.execute("insert into requests (ip, click_filename) values (?,?)", (request.remote_addr, file.filename))
+        crs.execute("insert into requests (ip, click_filename, email) values (?,?,?)",
+            (request.remote_addr, file.filename, metadata["email"]))
         requestid = crs.lastrowid
         for d in metadata["devices"]:
             crs.execute("select id from devices where printable_name = ?", (d["printable"],))
