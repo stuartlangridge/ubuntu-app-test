@@ -7,4 +7,7 @@
     <li>{{ item.printable|e }}: {{ item.status|e }}</li>
 {% endfor %}
 </ul>
+<script>
+setTimeout(function() { location.reload(true); }, 5000);
+</script>
 {% endblock %}
