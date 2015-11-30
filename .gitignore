@@ -5,3 +5,4 @@ server.pyc
 client/creds.json
 
 requests.db
+*.pyc

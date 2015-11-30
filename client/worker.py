@@ -19,6 +19,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import COMMASPACE, formatdate
 
+from scripts import provision
+
 fp = open("claim_secret") # this needs to exist. Put a long random string in it.
 claim_secret = fp.read()
 fp.close()
@@ -28,12 +30,7 @@ fp.close()
 ############################################################################################
 
 def do_provision(device):
-    print "**** Provisioning device ******"
-    print device
-    #provision_cmd = "./provision -s " + device + " -w -n $HOME/.ubuntu-ci/wifi.conf"
-    provision_cmd = "./provision -s " + device + " -w -n $HOME/.ubuntu-ci/wifi.conf"
-    print provision_cmd
-    subprocess.call(provision_cmd, shell=True)
+    provision.provision(device, network_file=os.path.expanduser("~/.ubuntu-ci/wifi.conf"))
 
 def do_test(params, job):
     resultsdir = tempfile.mktemp(prefix="tmp")
