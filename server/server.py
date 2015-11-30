@@ -26,7 +26,7 @@ def get_db():
 with app.app_context():
     db, crs = get_db()
     crs.execute(("create table if not exists requests ("
-        "id integer primary key, ip varchar, click_filename varchar time t TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+        "id integer primary key, ip varchar, click_filename varchar, time TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
         ")"))
     crs.execute("create table if not exists devices (id integer primary key, printable_name varchar unique)")
     crs.execute("create table if not exists request2device (deviceid integer, requestid integer)")
@@ -91,6 +91,13 @@ def upload():
                 })
         if not metadata["devices"]:
             return "You have to specify at least one device."
+        db, crs = get_db()
+        crs.execute("select count(*) from requests where time > date('now','-1 hour') and (ip = ? or email = ?)",
+            (request.remote_addr, metadata["email"]))
+        res = crs.fetchone()
+        if res and res[0] > 3:
+            return "Overuse error: you have overrun the rate limit. Please wait an hour"
+
         ndir = "%s-%s" % (datetime.datetime.now().strftime("%Y%m%d%H%M%S"), randomstring(10))
         ndirpath = os.path.join(app.config['UPLOAD_FOLDER'], ndir)
         os.mkdir(ndirpath) # should not fail!
