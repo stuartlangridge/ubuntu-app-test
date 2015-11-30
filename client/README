@@ -13,3 +13,12 @@ Bootstrapping a device requires some parts of the Ubuntu SDK on the client. Obta
 sudo add-apt-repository ppa:ubuntu-sdk-team/ppa
 sudo apt-get update
 sudo apt-get install android-tools-adb ubuntu-device-flash click-reviewers-tools phablet-tools
+
+Limitations
+
+* Devices will have no nework access - this may be added later, but will be limited
+* Cannot control what screenshots are taken. Currently 4 are taken:-
+  - Pre-launch - so developer can see the icon and description in the app scope
+  - Immediately after launch - so developer can see the splash screen
+  - 5 seconds after launch and 10 seconds after launch
+* Cannot yet control touch or other gestures

@@ -8,7 +8,7 @@ The server runs somewhere public, and is run following the instructions in serve
 
 ## The client(s)
 
-The clients are client/worker.py, and you connect multiple devices to a computer and then run one worker per device. The client needs implementing; it doesn't work yet. It knows how to fetch jobs and finish them, but the bit which actually *does the test* is not implemented. A worker needs to be started up with whatever information its `do_test` function needs to run and talk to the device it should be connected to.
+The clients are client/worker.py, and you connect multiple devices to a computer and then run one worker per device. The client needs re-implementing; it's currently a mess of python and shell scripts. It knows how to fetch jobs and finish them, but the bit which actually *does the test* is implemented outside of the worker script, and should be integrated. A worker needs to be started up with whatever information its `do_test` function needs to run and talk to the device it should be connected to.
 
 ## The claim secret
 

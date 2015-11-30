@@ -12,8 +12,8 @@ SERVERHOST="marvin.popey.com"
 CURRENTDIR=$(pwd)
 
 log() {
-	echo $*
-	echo $* >> $LOGFILE
+	echo $DEVICEID : $*
+	echo $DEVICEID : $* >> $LOGFILE
 }
 
 get_product_name(){
@@ -25,22 +25,23 @@ set_friendly_name() {
 	# Create user facing friendly name for device
 	case $PRODUCTID in
 		mako)
-			FRIENDLYNAME="Nexus_4"
+			FRIENDLYNAME="LG Nexus 4"
 			;;
 		krillin)
-			FRIENDLYNAME="bq_Aquaris_E4.5"
+			FRIENDLYNAME="bq Aquaris E4.5"
 		  ;;
 	  vegetahd)
-			FRIENDLYNAME="bq_Aquaris_E5"
+			FRIENDLYNAME="bq Aquaris E5"
 			;;
 		flo)
-			FRIENDLYNAME="Nexus_7_(2013)"
+			FRIENDLYNAME="Asus Nexus 7 2013"
+			ORIENTATION="landscape"
 			;;
 		arale)
-			FRIENDLYNAME="Meizu_MX4"
+			FRIENDLYNAME="Meizu MX4"
 			;;
 		*)
-			FRIENDLYNAME="Unidentified_Device"
+			FRIENDLYNAME="Unidentified Device"
 			;;
 	esac
 }
@@ -58,13 +59,14 @@ do
 	log "Product: $PRODUCTID"
 	set_friendly_name
 	log "Friendly name: $FRIENDLYNAME"
+	log "Orientation: $ORIENTATION"
 	# We call the worker with the friendly name (for it to pass to the server),
 	# the device ID so it knows which attached device to hand jobs off to,
 	# the product ID in case there are specific notes to inform the user about
 	# (e.g. SDL2 is known broken on mako),
 	# the orientation, so we may have multiple divices in different orientations
-  CMD="python ./worker.py --server=$PROTOCOL$SERVERHOST --device=$FRIENDLYNAME $DEVICEID $PRODUCTID $ORIENTATION"
-	echo $CMD
+  CMD="python ./worker.py --server=$PROTOCOL$SERVERHOST --device=\"$FRIENDLYNAME\" $DEVICEID $PRODUCTID $ORIENTATION"
+	log $CMD
 	# Next command should be backgrounded, but for one device and debuging we won't
 	$CMD
 done
