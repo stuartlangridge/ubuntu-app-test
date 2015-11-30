@@ -148,7 +148,7 @@ def check_forever(server, device, test_params):
                 # if it goes away, we die. Bootstrap should respawn us once the device
                 # comes back
                 time.sleep(wait_time)
-                wait_time = wait_time * 2
+                wait_time = wait_time * 1.4
                 if wait_time > 250: wait_time = 250
                 continue
             print "Got job %s; executing." % (job,)
@@ -166,7 +166,7 @@ def check_forever(server, device, test_params):
                 release_job(server, job)
                 do_provision(device=args.params[0])
                 time.sleep(wait_time)
-                wait_time = wait_time * 2
+                wait_time = wait_time * 1.4
                 if wait_time > 250: wait_time = 250
                 continue
         except KeyboardInterrupt:
@@ -175,7 +175,7 @@ def check_forever(server, device, test_params):
             print "Error when running a worker: waiting %s seconds and trying again" % wait_time
             traceback.print_exc(file=sys.stdout)
             time.sleep(wait_time)
-            wait_time = wait_time * 2
+            wait_time = wait_time * 1.4
             if wait_time > 250: wait_time = 250
         print "Worker running again"
 
