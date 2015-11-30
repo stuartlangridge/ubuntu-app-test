@@ -53,7 +53,7 @@ def restart_into_bootloader(device_id):
     subprocess.call(["adb", "reboot", "bootloader"])
     while 1:
         time.sleep(30) # give it a chance to reboot
-        out = subprocess.check_output(["fastboot devices"])
+        out = subprocess.check_output(["fastboot", "devices"])
         if device_id in out:
             log("Restarted into bootloader")
             return
@@ -61,9 +61,9 @@ def restart_into_bootloader(device_id):
 
 def full_flash(device_id, channel):
     log("FLASHING DEVICE")
-    device_type = adbshell("getprop ro.cm.device").strip()
+    device_type = adbshell("getprop ro.cm.device", device_id=device_id).strip()
     if not device_type:
-        device_type = adbshell("getprop ro.product.device").strip()
+        device_type = adbshell("getprop ro.product.device", device_id=device_id).strip()
     restart_into_bootloader(device_id)
 
     recovery_file = None
@@ -136,4 +136,3 @@ def provision(device_id, network_file=os.path.expanduser("~/.ubuntu-ci/wifi.conf
     refresh_unity = ("dbus-send /com/canonical/unity/scopes "
         "com.canonical.unity.scopes.InvalidateResults string:clickscope")
     adbshell(refresh_unity, device_id=device_id)
-
