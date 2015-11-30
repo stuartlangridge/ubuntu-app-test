@@ -9,11 +9,11 @@ fp.close()
 ####################### config
 UPLOAD_FOLDER = os.path.abspath(os.path.join(os.path.split(__file__)[0], "uploads"))
 ALLOWED_EXTENSIONS = set(['click'])
-KNOWN_DEVICES = []
 
 ####################### app config
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['PROPAGATE_EXCEPTIONS'] = True
 
 DATABASE = os.path.join(os.path.split(__file__)[0], "requests.db")
 
@@ -37,6 +37,20 @@ with app.app_context():
             pass
         else:
             raise e
+    try:
+        crs.execute("alter table devices add column code varchar")
+    except sqlite3.OperationalError as e:
+        if "duplicate column name: code" in e.message:
+            pass
+        else:
+            raise e
+    try:
+        crs.execute("alter table devices add column last_seen timestamp")
+    except sqlite3.OperationalError as e:
+        if "duplicate column name: last_seen" in e.message:
+            pass
+        else:
+            raise e
 
 ####################### utility functions
 def allowed_file(filename):
@@ -53,25 +67,27 @@ def randomstring(N):
 def slugify(s):
     return re.sub(r"[^A-Za-z0-9]", "_", s)
 
-def prune_known_devices():
-    global KNOWN_DEVICES
-    now = time.time()
-    binned = []
-    keep = []
-    for k in KNOWN_DEVICES:
-        if now - k["seen"] > 300:
-            binned.append(k)
-        else:
-            keep.append(k)
-    KNOWN_DEVICES = keep
-    if binned:
-        print "Removed devices for age:", ",".join(['"%s"' % x["printable"] for x in binned])
+def get_known_devices():
+    db, crs = get_db()
+    crs.execute("select printable_name, code from devices where last_seen > datetime('now', '-5 minutes')")
+    return [{"printable": row[0], "code":row[1]} for row in crs.fetchall()]
+
+def save_device(device):
+    db, crs = get_db()
+    crs.execute("select printable_name from devices where printable_name = ?", (device,))
+    row = crs.fetchone()
+    if row and row[0]:
+        crs.execute("update devices set code = ?, last_seen = datetime('now') where printable_name = ?", 
+            (slugify(device), device))
+    else:
+        crs.execute("insert into devices (printable_name, code, last_seen) values (?,?,datetime('now'))",
+            (device, slugify(device)))
+    db.commit()
 
 ####################### routes
 @app.route("/")
 def frontpage():
-    prune_known_devices()
-    return render_template("upload.html", devices=KNOWN_DEVICES)
+    return render_template("upload.html", devices=get_known_devices())
 
 @app.route("/upload", methods=["POST"])
 def upload():
@@ -83,7 +99,7 @@ def upload():
             "filename": filename,
             "devices": []
         }
-        for device in KNOWN_DEVICES:
+        for device in get_known_devices():
             if request.form.get("device_%s" % device["code"]) == "on":
                 metadata["devices"].append({
                     "printable": device["printable"],
@@ -92,7 +108,7 @@ def upload():
         if not metadata["devices"]:
             return "You have to specify at least one device."
         db, crs = get_db()
-        crs.execute("select count(*) from requests where time > date('now','-1 hour') and (ip = ? or email = ?)",
+        crs.execute("select count(*) from requests where time > datetime('now','-1 hour') and (ip = ? or email = ?)",
             (request.remote_addr, metadata["email"]))
         res = crs.fetchone()
         if res and res[0] > 3:
@@ -146,16 +162,9 @@ def claim():
     if request.args.get("claim_secret") != claim_secret:
         return json.dumps({"error": "Bad claim secret"}), 400, {'Content-Type': 'application/json'}
 
-    prune_known_devices()
+    save_device(device)
+    device_code = [x["code"] for x in get_known_devices() if x["printable"] == device][0]
 
-    if device not in [x["printable"] for x in KNOWN_DEVICES]:
-        KNOWN_DEVICES.append({"printable": device, "code": slugify(device)})
-
-    for d in KNOWN_DEVICES:
-        if d["printable"] == device:
-            d["seen"] = time.time()
-
-    device_code = [x["code"] for x in KNOWN_DEVICES if x["printable"] == device][0]
     # find the next unclaimed item which wants this device
     # this is a bit racy, but shouldn't be a problem in practice
     for fol in sorted(os.listdir(app.config["UPLOAD_FOLDER"])):
@@ -198,7 +207,7 @@ def click(uid):
 
 @app.route("/finished/<uid>/<device_code>")
 def finished(uid, device_code):
-    device_printable = [x["printable"] for x in KNOWN_DEVICES if x["code"] == device_code]
+    device_printable = [x["printable"] for x in get_known_devices() if x["code"] == device_code]
     if not device_printable:
         return json.dumps({"error": "Bad device code"}), 400, {'Content-Type': 'application/json'}
     device = device_printable[0]
