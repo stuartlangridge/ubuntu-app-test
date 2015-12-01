@@ -28,6 +28,7 @@ def unlock_device(device_id):
     print "Trying to unlock device"
     # Reboot probably not necessary now we're doing this at the end
     # after all the clicks have been removed
+    # FIXME we may remove this once we prove it works from runtest
     subprocess.call(["adb", "-s", device_id, "wait-for-device"])
     tries = 0
     hide_greeter = ("gdbus call --session --dest com.canonical.UnityGreeter "
@@ -52,7 +53,7 @@ def restart_into_bootloader(device_id):
     # reboot and retrying was found to be a successful workaround:
     # https://bugs.launchpad.net/ubuntu/+source/android-tools/+bug/1359488
     log("Restarting into bootloader")
-    subprocess.call(["adb", "reboot", "bootloader"])
+    subprocess.call(["adb", "-s", device_id, "reboot", "bootloader"])
     while 1:
         time.sleep(30) # give it a chance to reboot
         out = subprocess.check_output(["fastboot", "devices"])
@@ -86,7 +87,7 @@ def full_flash(device_id, channel):
     while 1:
         try:
             #flash_cmd = ["timeout", "1800", "ubuntu-device-flash", "touch"]
-            flash_cmd = ["ubuntu-device-flash", "touch"]
+            flash_cmd = ["ubuntu-device-flash", "touch", "--serial", device_id]
             if recovery_file:
                 flash_cmd.append("--recovery-image=%s" % (recovery_file,))
             flash_cmd += ["--password", phablet_password, "--bootstrap",
@@ -99,7 +100,7 @@ def full_flash(device_id, channel):
             if tries > 3:
                 raise Exception("Couldn't flash device")
             time.sleep(10)
-    subprocess.call(["adb", "wait-for-device"])
+    subprocess.call(["adb", "-s", device_id, "wait-for-device"])
 
 def provision(device_id, network_file=os.path.expanduser("~/.ubuntu-ci/wifi.conf"),
         channel="ubuntu-touch/stable/ubuntu"):
@@ -127,9 +128,11 @@ def provision(device_id, network_file=os.path.expanduser("~/.ubuntu-ci/wifi.conf
         "string:com.canonical.unity.AccountsService string:demo-edges variant:boolean:false")
     adbshell(set_up_account, device_id=device_id)
 
-    adbshell("sudo stop powerd", device_id=device_id)
-    adbshell("powerd-cli display on &", device_id=device_id)
-    adbshell("gsettings set com.ubuntu.touch.system activity-timeout 0", device_id=device_id)
+    # These are now done in runtest
+    # adbshell("sudo stop powerd", device_id=device_id)
+    # adbshell("powerd-cli display on &", device_id=device_id)
+    # adbshell("gsettings set com.ubuntu.touch.system activity-timeout 0", device_id=device_id)
+    # unlock_device(device_id)
 
     # remove preinstalled clicks
     clicks = [x.strip().split("\t") for x in adbshell("click list", device_id=device_id).split("\n") if x.strip()]
@@ -137,7 +140,6 @@ def provision(device_id, network_file=os.path.expanduser("~/.ubuntu-ci/wifi.conf
     for clickname, version in clicks:
         adbshell("sudo click unregister %s %s" % (clickname,version), device_id=device_id)
 
-    unlock_device(device_id)
 
     refresh_unity = ("dbus-send /com/canonical/unity/scopes "
         "com.canonical.unity.scopes.InvalidateResults string:clickscope")
