@@ -93,13 +93,13 @@ else
     echo `date` Installing $FILENAME
     adb -s $DEVICEID shell pkcon -p -y -v install-local --allow-untrusted $TARGET/$FILENAME | perl -pe 's/\x1b\[[0-9;]*[mG]//g' | tee -a $RESULTSDIR/install.txt
     # Suppress powerd
-    adb -s $DEVICEID sudo stop powerd
+    adb -s $DEVICEID shell sudo stop powerd
     # Turn the display screen on
-    adb -s $DEVICEID powerd-cli display on &
+    adb -s $DEVICEID shell powerd-cli display on &
     # Prevent the screen from locking
-    adb -s $DEVICEID gsettings set com.ubuntu.touch.system activity-timeout 0
+    adb -s $DEVICEID shell gsettings set com.ubuntu.touch.system activity-timeout 0
     # Unlock the screen
-    adb -s $DEVICEID gdbus call --session --dest com.canonical.UnityGreeter --object-path / --method com.canonical.UnityGreeter.HideGreeter
+    adb -s $DEVICEID shell gdbus call --session --dest com.canonical.UnityGreeter --object-path / --method com.canonical.UnityGreeter.HideGreeter
     # Refresh app scope
     adb -s $DEVICEID shell dbus-send /com/canonical/unity/scopes com.canonical.unity.scopes.InvalidateResults string:clickscope
     pause 5

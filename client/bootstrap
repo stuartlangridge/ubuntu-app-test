@@ -12,7 +12,7 @@ SERVERHOST="marvin.popey.com"
 CURRENTDIR=$(pwd)
 
 log() {
-	echo $DEVICEID : $*
+	#echo $DEVICEID : $*
 	echo $DEVICEID : $* >> $LOGFILE
 }
 
@@ -50,6 +50,7 @@ mkdir -p $LOGDIR
 
 # Identify all the devices attached (assume they exist)
 
+log "Bootstrap starting $(date)"
 DEVICES="N"
 for DEVICEID in `adb devices | grep -v "List" | awk '{print $1}'`
 do
@@ -65,10 +66,12 @@ do
 	# the product ID in case there are specific notes to inform the user about
 	# (e.g. SDL2 is known broken on mako),
 	# the orientation, so we may have multiple divices in different orientations
-  CMD="python ./worker.py --server=$PROTOCOL$SERVERHOST --device=\"$FRIENDLYNAME\" $DEVICEID $PRODUCTID $ORIENTATION"
+  CMD="python ./worker.py --server=$PROTOCOL$SERVERHOST --device=$FRIENDLYNAME $DEVICEID $PRODUCTID $ORIENTATION"
 	log $CMD
+	echo "Run this command in screen/tmux to start the worker"
+	echo $CMD
 	# Next command should be backgrounded, but for one device and debuging we won't
-	$CMD
+	#$CMD
 done
 
 # If no devices are found, we spit out a status and die

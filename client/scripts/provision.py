@@ -140,7 +140,6 @@ def provision(device_id, network_file=os.path.expanduser("~/.ubuntu-ci/wifi.conf
     for clickname, version in clicks:
         adbshell("sudo click unregister %s %s" % (clickname,version), device_id=device_id)
 
-
     refresh_unity = ("dbus-send /com/canonical/unity/scopes "
         "com.canonical.unity.scopes.InvalidateResults string:clickscope")
     adbshell(refresh_unity, device_id=device_id)
