@@ -21,11 +21,13 @@ def wait_for_session_up(device_id):
         tries += 1
 
 def adbshell(cmd, device_id):
+    print cmd, device_id
     return subprocess.check_output(["adb", "-s", device_id, "shell", cmd])
 
 def unlock_device(device_id):
-    subprocess.call(["adb", "-s", device_id, "reboot"])
-    time.sleep(5)
+    print "Trying to unlock device"
+    # Reboot probably not necessary now we're doing this at the end
+    # after all the clicks have been removed
     subprocess.call(["adb", "-s", device_id, "wait-for-device"])
     tries = 0
     hide_greeter = ("gdbus call --session --dest com.canonical.UnityGreeter "
@@ -83,12 +85,15 @@ def full_flash(device_id, channel):
     tries = 0
     while 1:
         try:
-            flash_cmd = ["timeout", "1800", "ubuntu-device-flash", image_server, revision, "touch"]
+            #flash_cmd = ["timeout", "1800", "ubuntu-device-flash", "touch"]
+            flash_cmd = ["ubuntu-device-flash", "touch"]
             if recovery_file:
                 flash_cmd.append("--recovery-image=%s" % (recovery_file,))
             flash_cmd += ["--password", phablet_password, "--bootstrap",
                 "--developer-mode", "--channel", channel]
+            print flash_cmd
             subprocess.call(flash_cmd)
+            break
         except subprocess.CalledProcessError:
             tries += 1
             if tries > 3:
@@ -104,13 +109,13 @@ def provision(device_id, network_file=os.path.expanduser("~/.ubuntu-ci/wifi.conf
     log("SETTING UP WIFI")
     wait_for_session_up(device_id)
 
-    subprocess.call(["phablet-network" ,"-n", network_file])
+    subprocess.call(["phablet-network", "-s", device_id, "-n", network_file])
 
     log("DISABLE WELCOME WIZARD")
-    subprocess.call(["phablet-config", "welcome-wizard", "--disable"])
+    subprocess.call(["phablet-config", "-s", device_id, "welcome-wizard", "--disable"])
 
     log("MAKE IMAGE WRITABLE")
-    subprocess.call(["phablet-config", "writable-image", "-r", phablet_password])
+    subprocess.call(["phablet-config", "-s", device_id, "writable-image", "-r", phablet_password])
 
     log("SETTING UP SUDO")
     set_up_sudo = ("echo %s | sudo -S bash -c 'echo phablet ALL=\(ALL\) NOPASSWD: ALL > "
@@ -122,16 +127,17 @@ def provision(device_id, network_file=os.path.expanduser("~/.ubuntu-ci/wifi.conf
         "string:com.canonical.unity.AccountsService string:demo-edges variant:boolean:false")
     adbshell(set_up_account, device_id=device_id)
 
-    unlock_device(device_id)
-
     adbshell("sudo stop powerd", device_id=device_id)
     adbshell("powerd-cli display on &", device_id=device_id)
     adbshell("gsettings set com.ubuntu.touch.system activity-timeout 0", device_id=device_id)
 
     # remove preinstalled clicks
-    clicks = [x.strip() for x in adbshell("click list", device_id=device_id).split("\n")]
-    for click in clicks:
-        adbshell("sudo click unregister %s" % (click,))
+    clicks = [x.strip().split("\t") for x in adbshell("click list", device_id=device_id).split("\n") if x.strip()]
+    print clicks
+    for clickname, version in clicks:
+        adbshell("sudo click unregister %s %s" % (clickname,version), device_id=device_id)
+
+    unlock_device(device_id)
 
     refresh_unity = ("dbus-send /com/canonical/unity/scopes "
         "com.canonical.unity.scopes.InvalidateResults string:clickscope")
