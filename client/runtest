@@ -49,7 +49,7 @@ function screen_grab {
   adb -s $DEVICEID shell "kill -SIGSTOP \$(pidof unity8)"
   adb -s $DEVICEID shell mirscreencast -m /var/run/mir_socket  -n1
   adb -s $DEVICEID shell "kill -SIGCONT \$(pidof unity8)"
-  SILLYFILE=`/usr/bin/adb $ADBOPTS shell ls -1 /tmp/mir_screencast*|tr -d '\r'`
+  SILLYFILE=`/usr/bin/adb -s $DEVICEID shell ls -1 /tmp/mir_screencast*|tr -d '\r'`
   adb -s $DEVICEID pull "$SILLYFILE" $RESULTSDIR/screenshot.rgba
   convert -depth 8 -size $SIZE $RESULTSDIR/screenshot.rgba $RESULTSDIR/screenshot$1.png
   rm $RESULTSDIR/screenshot.rgba

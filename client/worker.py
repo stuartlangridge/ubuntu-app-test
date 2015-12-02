@@ -11,7 +11,7 @@ The other parameters are passed to the do_test() function, which uses them to kn
 """
 
 import argparse, traceback, sys, urllib, urlparse, time, json, subprocess, tempfile, signal
-import smtplib, json, codecs
+import smtplib, json, codecs, datetime
 import os
 from os.path import basename
 from email.mime.application import MIMEApplication
@@ -102,9 +102,9 @@ def deal_with_results(job, results):
         from_name=creds.get("name"),
         from_password=creds["password"],
         to_addresses=[job["metadata"]["email"]],
-        subject="Your application results from Marvin",
-        text_body="Please find attached the results of your application run...",
-        html_body="<html><body>Please find attached the results of your application run...",
+        subject=job["metadata"]["filename"] + " results from Marvin ",
+        text_body="Please find attached the results of Marvin running " + job["metadata"]["filename"] + " submitted " + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(job["metadata"]["time"])),
+        html_body="<html><body>Please find attached the results of Marvin running " + job["metadata"]["filename"] + " submitted " + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(job["metadata"]["time"])),
         attached_files=[reviewlog, installlog, launchlog, screenshot0, screenshot1, screenshot2, screenshot3, applicationlog, kernellog, deviceversion]
     )
 
@@ -145,7 +145,7 @@ def check_forever(server, device, test_params):
         try:
             job = get_job(server, device)
             if not job:
-                print "No job available: waiting %s seconds and trying again" % wait_time
+                print str(datetime.datetime.now()) + ": No job available: waiting %s seconds and trying again" % wait_time
                 # Check for device still existing and being available here.
                 # if it goes away, we die. Bootstrap should respawn us once the device
                 # comes back
