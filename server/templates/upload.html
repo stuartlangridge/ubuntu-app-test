@@ -16,7 +16,34 @@
         {% for device in devices %}
             <li><label>{{ device.printable|e }} <input type="checkbox" name="device_{{ device.code|e }}"></label></li>
         {% endfor %}
+        {% if not devices %}
+            <li>...no test devices are currently online. Please try again later...</li>
+        {% endif %}
     </ul>
     <p><input type=submit value="Upload"></p>
 </form>
+{% if not devices %}
+<script>
+function poll() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "devicecount", true);
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState == 4 && xhr.status === 200) {
+            var j;
+            try {
+                j = JSON.parse(xhr.responseText);
+            } catch(e) {
+                return;
+            }
+
+            if (j && j.devices && j.devices > 0) {
+                location.reload();
+            }
+        }
+    };
+    xhr.send();
+}
+setInterval(poll, 15000);
+</script>
+{% endif %}
 {% endblock %}

@@ -89,6 +89,10 @@ def save_device(device):
 def frontpage():
     return render_template("upload.html", devices=get_known_devices())
 
+@app.route("/devicecount")
+def devicecount():
+    return json.dumps({"devices": len(get_known_devices())})
+
 @app.route("/upload", methods=["POST"])
 def upload():
     file = request.files["click"]
