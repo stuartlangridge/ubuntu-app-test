@@ -16,6 +16,9 @@
         {% for device in devices %}
             <li><label>{{ device.printable|e }} <input type="checkbox" name="device_{{ device.code|e }}"></label></li>
         {% endfor %}
+        {% if not devices %}
+            <li>...no test devices are currently online. Please try again later...</li>
+        {% endif %}
     </ul>
     <p><input type=submit value="Upload"></p>
 </form>
