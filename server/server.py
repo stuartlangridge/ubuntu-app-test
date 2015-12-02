@@ -97,7 +97,8 @@ def upload():
         metadata = {
             "email": request.form['email'],
             "filename": filename,
-            "devices": []
+            "devices": [],
+            "time": time.time()
         }
         for device in get_known_devices():
             if request.form.get("device_%s" % device["code"]) == "on":
