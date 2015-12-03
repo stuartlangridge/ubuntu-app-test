@@ -75,7 +75,7 @@ FILE=$(ls $TMPDIR/*.click)
 FILENAME=$(basename $FILE)
 DESKTOPFILE=$(echo $FILENAME | tr '-' '_')
 
-click-review $FILE | tee -a $RESULTSDIR/click-review.txt
+click-review $FILE | awk -F/ '{print $4}' | tee -a $RESULTSDIR/click-review.txt
 
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
   echo "Click review of $FILE failed"
@@ -92,39 +92,47 @@ else
     adb -s $DEVICEID shell rm /home/phablet/.local/share/applications/*.desktop
     echo `date` Installing $FILENAME
     adb -s $DEVICEID shell pkcon -p -y -v install-local --allow-untrusted $TARGET/$FILENAME | perl -pe 's/\x1b\[[0-9;]*[mG]//g' | tee -a $RESULTSDIR/install.txt
-    # Suppress powerd
-    adb -s $DEVICEID shell sudo stop powerd
-    # Turn the display screen on
-    adb -s $DEVICEID shell powerd-cli display on &
-    # Prevent the screen from locking
-    adb -s $DEVICEID shell gsettings set com.ubuntu.touch.system activity-timeout 0
-    # Unlock the screen
-    adb -s $DEVICEID shell gdbus call --session --dest com.canonical.UnityGreeter --object-path / --method com.canonical.UnityGreeter.HideGreeter
-    # Refresh app scope
-    adb -s $DEVICEID shell dbus-send /com/canonical/unity/scopes com.canonical.unity.scopes.InvalidateResults string:clickscope
-    pause 5
-    # Screenshot the app scope (should be on screen by default) so the dev sees their icon/text
-    screen_grab 0
+    # Get desktop file name
+    GETDESKTOP="adb -s $DEVICEID shell ls -tr $TARGET/.local/share/applications/*.desktop | tail -n 1 | tr -d '\r' | tr -d '\n'"
+    DESKTOP=$($GETDESKTOP)
+    # Check if the .desktop file has an Exec line, if not, it's probably a scope and we can't run it
+    EXECLINE=$(adb -s $DEVICEID shell grep ^Exec $DESKTOP | tr -d '\n')
+    if [ "$EXECLINE" == "" ]; then
+      # Exec line not found, this is probably a scope
+      echo "Exec line not found in desktop file. This is probably a scope not an app, and currently cannot be tested." | tee -a $RESULTSDIR/click-review.txt
+    else
+      # We did find an Exec line, so chances are this is an app we can test!
+      # Suppress powerd
+      adb -s $DEVICEID shell sudo stop powerd
+      # Turn the display screen on
+      adb -s $DEVICEID shell powerd-cli display on &
+      # Prevent the screen from locking
+      adb -s $DEVICEID shell gsettings set com.ubuntu.touch.system activity-timeout 0
+      # Unlock the screen
+      adb -s $DEVICEID shell gdbus call --session --dest com.canonical.UnityGreeter --object-path / --method com.canonical.UnityGreeter.HideGreeter
+      # Refresh app scope
+      adb -s $DEVICEID shell dbus-send /com/canonical/unity/scopes com.canonical.unity.scopes.InvalidateResults string:clickscope
+      pause 5
+      # Screenshot the app scope (should be on screen by default) so the dev sees their icon/text
+      screen_grab 0
+      # Trim desktop filename
+      LAUNCH=$(basename $DESKTOP | sed 's/.desktop//')
+      # shut off the network
+      adb -s $DEVICEID shell nmcli n off
+      #adb -s $DEVICEID shell sudo -u phablet -i start application APP_ID=$LAUNCH 2>&1 | tee -a $RESULTSDIR/launch.log
+      adb -s $DEVICEID shell "ubuntu-app-launch $LAUNCH" 2>&1 | tee -a $RESULTSDIR/launch.txt
+      # Get initial screenshot
+      screen_grab 1
+      pause 5
+      screen_grab 2
+      pause 5
+      screen_grab 3
+      # stop app
+      adb -s $DEVICEID shell "ubuntu-app-stop $LAUNCH"
+      # Get logs
+      get_logs
+    fi
   fi
-  # Get desktop file name
-  GETDESKTOP="adb -s $DEVICEID shell ls -tr $TARGET/.local/share/applications/*.desktop | tail -n 1 | tr -d '\r' | tr -d '\n'"
-  DESKTOP=$($GETDESKTOP)
-  # Trim desktop filename
-  LAUNCH=$(basename $DESKTOP | sed 's/.desktop//')
-  # shut off the network
-  adb -s $DEVICEID shell nmcli n off
-  #adb -s $DEVICEID shell sudo -u phablet -i start application APP_ID=$LAUNCH 2>&1 | tee -a $RESULTSDIR/launch.log
-  adb -s $DEVICEID shell "ubuntu-app-launch $LAUNCH" 2>&1 | tee -a $RESULTSDIR/launch.txt
-  # Get initial screenshot
-  screen_grab 1
-  pause 5
-  screen_grab 2
-  pause 5
-  screen_grab 3
-  # stop app
-  adb -s $DEVICEID shell "ubuntu-app-stop $LAUNCH"
-  # Get logs
-  get_logs
 fi
 # Delete any empty files (i.e. logs) so we don't email zero size files
 find $RESULTSDIR -size  0 -print0 |xargs -0 rm
