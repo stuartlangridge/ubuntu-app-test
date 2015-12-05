@@ -83,16 +83,8 @@ def send_email(from_address, from_name, from_password, to_addresses, subject, te
 def deal_with_results(job, results):
     print "Now deal with the results. For example, you may want to email these results:"
     print results
-    applicationlog = results["resultsdir"] + "/application-log.txt"
-    reviewlog = results["resultsdir"] + "/click-review.txt"
-    installlog = results["resultsdir"] + "/install.txt"
-    launchlog = results["resultsdir"] + "/launch.txt"
-    kernellog = results["resultsdir"] + "/dmesg.txt"
-    deviceversion = results["resultsdir"] + "/device-version.txt"
-    screenshot0 = results["resultsdir"] + "/screenshot0.png"
-    screenshot1 = results["resultsdir"] + "/screenshot1.png"
-    screenshot2 = results["resultsdir"] + "/screenshot2.png"
-    screenshot3 = results["resultsdir"] + "/screenshot3.png"
+    upload_files = [os.path.join(results["resultsdir"], x) for x in os.listdir(results["resultsdir"])]
+    upload_files = [x for x in upload_files if os.path.isfile(x)]
     print job["metadata"]["email"]
     fp = codecs.open("creds.json") # has username, name, password keys
     creds = json.load(fp)
@@ -105,7 +97,7 @@ def deal_with_results(job, results):
         subject=job["metadata"]["filename"] + " results from Marvin ",
         text_body="Please find attached the results of Marvin running " + job["metadata"]["filename"] + " submitted " + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(job["metadata"]["time"])),
         html_body="<html><body>Please find attached the results of Marvin running " + job["metadata"]["filename"] + " submitted " + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(job["metadata"]["time"])),
-        attached_files=[reviewlog, installlog, launchlog, screenshot0, screenshot1, screenshot2, screenshot3, applicationlog, kernellog, deviceversion]
+        attached_files=upload_files
     )
 
 ############################################################################################
