@@ -70,7 +70,7 @@ def slugify(s):
 
 def get_known_devices():
     db, crs = get_db()
-    crs.execute("select printable_name, code from devices where last_seen > datetime('now', '-5 minutes')")
+    crs.execute("select printable_name, code from devices where last_seen > datetime('now', '-15 minutes')")
     return [{"printable": row[0], "code":row[1]} for row in crs.fetchall()]
 
 def save_device(device):
@@ -78,7 +78,7 @@ def save_device(device):
     crs.execute("select printable_name from devices where printable_name = ?", (device,))
     row = crs.fetchone()
     if row and row[0]:
-        crs.execute("update devices set code = ?, last_seen = datetime('now') where printable_name = ?", 
+        crs.execute("update devices set code = ?, last_seen = datetime('now') where printable_name = ?",
             (slugify(device), device))
     else:
         crs.execute("insert into devices (printable_name, code, last_seen) values (?,?,datetime('now'))",
@@ -128,7 +128,7 @@ def admin():
             cleanupable = True
             if metadata.get("devices", []):
                 cleanupable = all([x.get("status") == "finished" for x in metadata["devices"]])
-            queue.append({"uid": fol, "metadata": metadata, "cleanupable": cleanupable, 
+            queue.append({"uid": fol, "metadata": metadata, "cleanupable": cleanupable,
                 "dt": os.stat(ometa).st_ctime,
                 "dta": time.asctime(time.gmtime(os.stat(ometa).st_ctime))})
     queue.sort(cmp=lambda a,b:cmp(a["dt"], b["dt"]))
