@@ -75,10 +75,11 @@ FILE=$(ls $TMPDIR/*.click)
 FILENAME=$(basename $FILE)
 DESKTOPFILE=$(echo $FILENAME | tr '-' '_')
 
-click-review $FILE | awk -F/ '{print $4}' | tee -a $RESULTSDIR/click-review.txt
+click-review $FILE | tee -a $RESULTSDIR/click-review.txt
 
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
   echo "Click review of $FILE failed"
+  exit 1
 else
   echo $(date +%Y%m%d%H%M%S) Pushing $FILE to $TARGET
   # Send the click package to the device
