@@ -16,7 +16,7 @@ HERE=$(pwd)
 SERVERHOST="http://marvin.popey.com"
 
 function pause {
-    echo "Waiting $1"
+    echo $(date +%Y-%m-%d-%H%M%S) "Waiting $1"
     sleep $1
 }
 
@@ -46,10 +46,12 @@ function screen_grab {
     *)
   esac
   CONVERTOPTS="$CONVERTOPTS"
-  adb -s $DEVICEID shell "kill -SIGSTOP \$(pidof unity8)"
+#  adb -s $DEVICEID shell "kill -SIGSTOP \$(pidof unity8)"
   # FIXME: Need to put some smarts around this as it sometimes wedges the phone
+  # try not suspending unity8 to see if that helps
+  echo $(date +%Y-%m-%d-%H%M%S) "Grabbing screenshot"
   adb -s $DEVICEID shell mirscreencast -m /var/run/mir_socket  -n1
-  adb -s $DEVICEID shell "kill -SIGCONT \$(pidof unity8)"
+#  adb -s $DEVICEID shell "kill -SIGCONT \$(pidof unity8)"
   SILLYFILE=`/usr/bin/adb -s $DEVICEID shell ls -1 /tmp/mir_screencast*|tr -d '\r'`
   adb -s $DEVICEID pull "$SILLYFILE" $RESULTSDIR/screenshot.rgba
   convert -depth 8 -size $SIZE $RESULTSDIR/screenshot.rgba $RESULTSDIR/screenshot$1.png
@@ -65,8 +67,8 @@ function get_logs {
   adb -s $DEVICEID shell "sudo dmesg -T | grep $LAUNCH" > $RESULTSDIR/dmesg.txt
 }
 
-echo $CLICK_URL
-echo $DEVICEID
+echo $(date +%Y-%m-%d-%H%M%S) $CLICK_URL
+echo $(date +%Y-%m-%d-%H%M%S) $DEVICEID
 
 mkdir $RESULTSDIR
 
@@ -82,24 +84,27 @@ CONTAINS_ERRORS=$(grep ^Errors $RESULTSDIR/click-review.txt)
 CONTAINS_WARNINGS=$(grep ^Warnings $RESULTSDIR/click-review.txt)
 
 if [ -n "${CONTAINS_ERRORS}" ]; then
-  echo "Click review of $FILE failed, errors found"
+  echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE failed, errors found"
   exit 1
 fi
 if [ -n "${CONTAINS_WARNINGS}" ]; then
-  echo "Click review of $FILE generated warnings, running anyway"
+  echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE generated warnings, running anyway"
 fi
-echo $(date +%Y%m%d%H%M%S) Pushing $FILE to $TARGET
+echo $(date +%Y-%m-%d-%H%M%S) Pushing $FILE to $TARGET
 # Send the click package to the device
 adb -s $DEVICEID push $FILE $TARGET
 if [ "$?" != "0" ]; then
-    echo `date` Push failed
+    echo $(date +%Y-%m-%d-%H%M%S) Push failed
+    echo "There was a problem pushing $FILE to $DEVICE_TYPE on $HOSTNAME at $(date +%Y-%m-%d-%H%M%S). Please try again later." > $RESULTSDIR/errors.txt
+    # attempt basic remedial measure of rebooting device
+    adb -s $DEVICEID reboot
     exit 2
 else
   #clean out .desktop files from device so there's only one from our app (ugh)
   # FIXME: derive the desktop file name or some other way but this works :S
   # This shouldn't be needed anymore as we delete the click apps during provisioning
   adb -s $DEVICEID shell rm /home/phablet/.local/share/applications/*.desktop
-  echo `date` Installing $FILENAME
+  echo $(date +%Y-%m-%d-%H%M%S) Installing $FILENAME
   adb -s $DEVICEID shell pkcon -p -y -v install-local --allow-untrusted $TARGET/$FILENAME | perl -pe 's/\x1b\[[0-9;]*[mG]//g' | tee -a $RESULTSDIR/install.txt
   # Get desktop file name
   GETDESKTOP="adb -s $DEVICEID shell ls -tr $TARGET/.local/share/applications/*.desktop | tail -n 1 | tr -d '\r' | tr -d '\n'"
