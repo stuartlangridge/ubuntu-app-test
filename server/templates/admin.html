@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Admin{% endblock %}
+{% block head %}
+    {{ super() }}
+    <style type="text/css">
+    ul {
+        margin: 0;
+        padding: 0;
+    }
+    dt { clear: left; }
+    ul, dd {
+        padding: 0.5em;
+        overflow: auto;
+    }
+    li {
+        list-style: none;
+        display: block;
+        float: left;
+        margin: 0;
+        padding: 0;
+        border: 1px solid #ccc;
+    }
+    li em, li strong {
+        padding: 0.3em;
+        display: block;
+        float: left;
+    }
+    dl::after {
+        content: "x";
+        clear: both;
+        font-size: 0;
+    }
+    li strong.pending { background: yellow; }
+    li strong.claimed { background: orange; }
+    li strong.finished { background: green; }
+    </style>
+{% endblock %}
+{% block content %}
+<h1>The queue</h1>
+<dl>
+{% for item in queue %}
+    <dt><em>{{item.metadata.email}}</em> uploaded <a href="/click/{{item.uid}}">{{item.metadata.filename}}</a> at {{item.dta}}</dt>
+    <dd>
+        <ul>
+            {% for device in item.metadata.devices %}
+            <li><em>{{device.printable}}</em> <strong class="{{device.status}}">{{device.status}}</strong></li>
+            {% endfor %}
+        </ul>
+        {% if item.cleanupable %}
+        (will be cleaned up in next cleanup iteration)
+        {% endif %}
+    </dd>
+{% endfor %}
+</dl>
+{% endblock %}

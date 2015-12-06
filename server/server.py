@@ -1,6 +1,7 @@
 import os, datetime, codecs, random, string, json, re, time, sqlite3, shutil
-from flask import Flask, render_template, request, url_for, abort, redirect, send_from_directory, g
+from flask import Flask, render_template, request, url_for, abort, redirect, send_from_directory, g, Response
 from werkzeug import secure_filename
+from functools import wraps
 
 fp = open("claim_secret") # this needs to exist. Put a long random string in it.
 claim_secret = fp.read()
@@ -84,10 +85,55 @@ def save_device(device):
             (device, slugify(device)))
     db.commit()
 
+def check_auth(username, password):
+    """This function is called to check if a username /
+    password combination is valid.
+    """
+    return username == 'admin' and password == claim_secret.strip()
+
+def authenticate():
+    """Sends a 401 response that enables basic auth"""
+    return Response(
+    'Could not verify your access level for that URL.\n'
+    'You have to login with proper credentials', 401,
+    {'WWW-Authenticate': 'Basic realm="Login Required"'})
+
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_auth(auth.username, auth.password):
+            return authenticate()
+        return f(*args, **kwargs)
+    return decorated
+
 ####################### routes
 @app.route("/")
 def frontpage():
     return render_template("upload.html", devices=get_known_devices())
+
+@app.route("/admin")
+@requires_auth
+def admin():
+    queue = []
+    subfols = os.listdir(app.config["UPLOAD_FOLDER"])
+    for fol in subfols:
+        ffol = os.path.join(app.config["UPLOAD_FOLDER"], fol)
+        ometa = os.path.join(ffol, "metadata.json")
+        if os.path.exists(ometa):
+            fp = codecs.open(ometa, encoding="utf8")
+            metadata = fp.read()
+            fp.close()
+            metadata = json.loads(metadata)
+            cleanupable = True
+            if metadata.get("devices", []):
+                cleanupable = all([x.get("status") == "finished" for x in metadata["devices"]])
+            queue.append({"uid": fol, "metadata": metadata, "cleanupable": cleanupable, 
+                "dt": os.stat(ometa).st_ctime,
+                "dta": time.asctime(time.gmtime(os.stat(ometa).st_ctime))})
+    queue.sort(cmp=lambda a,b:cmp(a["dt"], b["dt"]))
+    return render_template("admin.html", devices=get_known_devices(),
+        queue=queue)
 
 @app.route("/devicecount")
 def devicecount():
