@@ -54,7 +54,7 @@ function screen_grab {
 #  adb -s $DEVICEID shell "kill -SIGCONT \$(pidof unity8)"
   SILLYFILE=`/usr/bin/adb -s $DEVICEID shell ls -1 /tmp/mir_screencast*|tr -d '\r'`
   adb -s $DEVICEID pull "$SILLYFILE" $RESULTSDIR/screenshot.rgba
-  convert -depth 8 -size $SIZE $RESULTSDIR/screenshot.rgba $RESULTSDIR/screenshot$1.png
+  convert -depth 8 -size $SIZE $RESULTSDIR/screenshot.rgba $RESULTSDIR/$LAUNCH-$DEVICE_TYPE-$1.png
   rm $RESULTSDIR/screenshot.rgba
 }
 
@@ -62,9 +62,9 @@ function get_logs {
   # Get data about the version of ubuntu on the device
   adb -s $DEVICEID shell "system-image-cli --info" > $RESULTSDIR/device-version.txt
   # Get the application log
-  adb -s $DEVICEID pull $TARGET/.cache/upstart/application-click-$LAUNCH.log $RESULTSDIR/application-log.txt
+  adb -s $DEVICEID pull $TARGET/.cache/upstart/application-click-$LAUNCH.log $RESULTSDIR/$LAUNCH-$DEVICE_TYPE-application-log.txt
   # Get kernel output associated with the app
-  adb -s $DEVICEID shell "sudo dmesg -T | grep $LAUNCH" > $RESULTSDIR/dmesg.txt
+  adb -s $DEVICEID shell "sudo dmesg -T | grep $LAUNCH" > $RESULTSDIR/$LAUNCH-$DEVICE_TYPE-dmesg.txt
 }
 
 echo $(date +%Y-%m-%d-%H%M%S) $CLICK_URL
@@ -131,14 +131,14 @@ else
     # Refresh app scope
     adb -s $DEVICEID shell dbus-send /com/canonical/unity/scopes com.canonical.unity.scopes.InvalidateResults string:clickscope
     pause 5
-    # Screenshot the app scope (should be on screen by default) so the dev sees their icon/text
-    screen_grab 0
     # Trim desktop filename
     LAUNCH=$(basename $DESKTOP | sed 's/.desktop//')
     # shut off the network
     adb -s $DEVICEID shell nmcli n off
     #adb -s $DEVICEID shell sudo -u phablet -i start application APP_ID=$LAUNCH 2>&1 | tee -a $RESULTSDIR/launch.log
-    adb -s $DEVICEID shell "ubuntu-app-launch $LAUNCH" 2>&1 | tee -a $RESULTSDIR/launch.txt
+    # Screenshot the app scope (should be on screen by default) so the dev sees their icon/text
+    screen_grab 0
+    adb -s $DEVICEID shell "ubuntu-app-launch $LAUNCH" 2>&1 | tee -a $RESULTSDIR/$LAUNCH-$DEVICE_TYPE-launch.txt
     # Get initial screenshot
     screen_grab 1
     pause 5
