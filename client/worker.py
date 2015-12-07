@@ -45,8 +45,12 @@ def do_test(params, job):
     # e.g. ./runtest /click/20151126103906-PLBRWIBL9X 0050aba613958223 mako portait /tmp/foo
     runtest_cmd = "./runtest " + job["click"] + " " + params[0] + " " + params[1] + " " + params[2] + " " + resultsdir
     print runtest_cmd
-    subprocess.call(runtest_cmd, shell=True)
-    return True, {"resultsdir": resultsdir}
+    testresult = subprocess.call(runtest_cmd, shell=True)
+    if testresult == 0:
+        success = True
+    else:
+        success = False
+    return success, {"resultsdir": resultsdir}
 
 def send_email(from_address, from_name, from_password, to_addresses, subject, text_body, html_body, attached_files=None):
     # Create the email
