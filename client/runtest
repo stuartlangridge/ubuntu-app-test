@@ -90,8 +90,11 @@ fi
 if [ -n "${CONTAINS_WARNINGS}" ]; then
   echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE generated warnings, running anyway"
 fi
-echo $(date +%Y-%m-%d-%H%M%S) Pushing $FILE to $TARGET
+# Check for device before we do this. It fails a lot.
+echo $(date +%Y-%m-%d-%H%M%S) Waiting for $DEVICEID before sending $FILE to $TARGET
+timeout 600 adb -s $DEVICEID wait-for-device
 # Send the click package to the device
+echo $(date +%Y-%m-%d-%H%M%S) Pushing $FILE to $TARGET
 adb -s $DEVICEID push $FILE $TARGET
 if [ "$?" != "0" ]; then
     echo $(date +%Y-%m-%d-%H%M%S) Push failed
