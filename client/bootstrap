@@ -28,17 +28,17 @@ set_friendly_name() {
 			FRIENDLYNAME="LG_Nexus_4"
 			;;
 		krillin)
-			FRIENDLYNAME="bq_Aquaris_E4.5"
+			FRIENDLYNAME="bq_Aquaris_E4.5_Ubuntu_Edition"
 		  ;;
 	  vegetahd)
-			FRIENDLYNAME="bq_Aquaris_E5"
+			FRIENDLYNAME="bq_Aquaris_E5_Ubuntu_Edition"
 			;;
 		flo)
 			FRIENDLYNAME="Asus_Nexus_7_2013"
 			ORIENTATION="landscape"
 			;;
 		arale)
-			FRIENDLYNAME="Meizu_MX4"
+			FRIENDLYNAME="Meizu_MX4_Ubuntu_Edition"
 			;;
 		*)
 			FRIENDLYNAME="Unidentified_Device"

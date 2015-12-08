@@ -156,12 +156,15 @@ def check_forever(server, device, test_params):
                 print "Job successfully executed. Releasing job."
                 release_job(server, job)
                 deal_with_results(job, results)
-                do_provision(device=args.params[0])
+                # Lets see what happens if we don't re-provision after each
+                # succcessful run
+                # do_provision(device=args.params[0])
                 wait_time = 1
             else:
                 # wait for wait_time, because we did not succeed, meaning this job went wrong
                 print "Job failed: releasing job, then waiting %s seconds and trying again" % wait_time
                 release_job(server, job)
+                # Re-provision the device on errors, as this may fix the issue
                 do_provision(device=args.params[0])
                 time.sleep(wait_time)
                 wait_time = wait_time * 1.4
@@ -194,5 +197,6 @@ if __name__ == "__main__":
         help='User-viewable name for this device (need not be unique)', required=True)
     args = parser.parse_args()
     print args
+    # On first launch we always re-provision the device
     do_provision(device=args.params[0])
     check_forever(args.server, args.device, args.params)

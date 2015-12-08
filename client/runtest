@@ -149,8 +149,35 @@ else
     adb -s $DEVICEID shell "ubuntu-app-stop $LAUNCH"
     # Get logs
     get_logs
-  fi
-fi
+    # Remove any click packages remaining (clean up after our app)
+    adb -s $DEVICEID shell click list |  cut -f1 -d"	" | while read line
+    do
+      REMOVECLICK="adb -s $DEVICEID shell sudo click unregister $line"
+      echo "$REMOVECLICK"
+      $REMOVECLICK
+    done
+
+    # Clean up app data and logs created by the app
+    # FIXME: These directory names aren't quite right
+    # adb -s $DEVICEID rm -rf $TARGET/.config/$LAUNCH*
+    # adb -s $DEVICEID rm -rf $TARGET/.cache/QML/Apps/$LAUNCH*
+    adb -s $DEVICEID rm $TARGET/.cache/upstart/application-click-$LAUNCH.log
+
+    # Restore state of device so display goes off between tests (if there's time)
+    # Turn on screen time out of 1 min
+    adb -s $DEVICEID shell gsettings set com.ubuntu.touch.system activity-timeout 60
+    # Find the powerd-cli process we started from above
+    POWERDPID=$(adb shell pidof powerd-cli | tr -d '\r')
+    # Kill it (there's probably a better way)
+    adb -s $DEVICEID shell kill $POWERDPID
+    # Restart power daemon
+    adb -s $DEVICEID shell sudo start powerd
+  fi # [ "$EXECLINE" == "" ]; then
+  # Delete the click file we pushed to the device
+  adb -s $DEVICEID shell rm $TARGET/*.click
+fi # [ "$?" != "0" ]; then (push)
 # Delete any empty files (i.e. logs) so we don't email zero size files
 find $RESULTSDIR -size  0 -print0 |xargs -0 rm
 rm -rf $TMPDIR
+
+echo $(date +%Y-%m-%d-%H%M%S) "Runtest exit normally"
