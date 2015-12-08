@@ -161,7 +161,7 @@ else
     # FIXME: These directory names aren't quite right
     # adb -s $DEVICEID rm -rf $TARGET/.config/$LAUNCH*
     # adb -s $DEVICEID rm -rf $TARGET/.cache/QML/Apps/$LAUNCH*
-    adb -s $DEVICEID rm $TARGET/.cache/upstart/application-click-$LAUNCH.log
+    adb -s $DEVICEID shell rm $TARGET/.cache/upstart/application-click-$LAUNCH.log
 
     # Restore state of device so display goes off between tests (if there's time)
     # Turn on screen time out of 1 min
