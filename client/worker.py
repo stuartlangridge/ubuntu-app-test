@@ -211,8 +211,15 @@ if __name__ == "__main__":
         help='HTTP URL of the server', required=True)
     parser.add_argument('--device', dest='device',
         help='User-viewable name for this device (need not be unique)', required=True)
+    parser.add_argument('--no-provision', dest='prov',
+        help='Only specify if device has already been provisioned',
+        required=False, action='store_false')
+    parser.add_argument('--provision', dest='prov',
+        help='To force provisioning already been provisioned',
+        required=False, action='store_true')
+    parser.set_defaults(prov=False)
     args = parser.parse_args()
     print args
-    # On first launch we always re-provision the device
-    do_provision(device=args.params[0])
+    if args.prov:
+        do_provision(device=args.params[0])
     check_forever(args.server, args.device, args.params)
