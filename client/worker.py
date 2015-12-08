@@ -32,6 +32,18 @@ fp.close()
 def do_provision(device):
     provision.provision(device, network_file=os.path.expanduser("~/.ubuntu-ci/wifi.conf"))
 
+def do_checks(params, job):
+    checksdir = tempfile.mktemp(prefix="tmp")
+    print "Checking click package"
+    runchecks_cmd = "./runchecks " + job["click"] + " " + params[0] + " " + params[1] + " " + params[2] + " " + checksdir
+    print runchecks_cmd
+    checkresult = subprocess.call(runchecks_cmd, shell=True)
+    if checkresult == 0:
+        success = True
+    else:
+        success = False
+    return success, {"checksdir": checksdir}
+
 def do_test(params, job):
     resultsdir = tempfile.mktemp(prefix="tmp")
     print "****************** Actually running the test."
@@ -150,26 +162,30 @@ def check_forever(server, device, test_params):
                 if wait_time > 250: wait_time = 250
                 continue
             print "Got job %s; executing." % (job,)
-            success, results = do_test(params=test_params, job=job)
-            if success:
-                # loop around immediately: success means "we did the job OK and am ready"
-                print "Job successfully executed. Releasing job."
-                release_job(server, job)
-                deal_with_results(job, results)
-                # Lets see what happens if we don't re-provision after each
-                # succcessful run
-                # do_provision(device=args.params[0])
-                wait_time = 1
-            else:
-                # wait for wait_time, because we did not succeed, meaning this job went wrong
-                print "Job failed: releasing job, then waiting %s seconds and trying again" % wait_time
-                release_job(server, job)
-                # Re-provision the device on errors, as this may fix the issue
-                do_provision(device=args.params[0])
-                time.sleep(wait_time)
-                wait_time = wait_time * 1.4
-                if wait_time > 250: wait_time = 250
-                continue
+            checksuccess = testsuccess = True
+            checksuccess, results = do_checks(params=test_params, job=job)
+            if checksuccess:
+                testsuccess, results = do_test(params=test_params, job=job)
+                if testsuccess:
+                    # loop around immediately: success means "we did the job OK and am ready"
+                    print "Job successfully executed. Releasing job."
+                    release_job(server, job)
+                    deal_with_results(job, results)
+                    # Lets see what happens if we don't re-provision after each
+                    # succcessful run
+                    # do_provision(device=args.params[0])
+                    wait_time = 1
+                else:
+                    # Re-provision the device on errors, as this may fix the issue
+                    do_provision(device=args.params[0])
+            if not (checksuccess and testsuccess):
+                    # wait for wait_time, because we did not succeed, meaning this job went wrong
+                    print "Job failed: releasing job, then waiting %s seconds and trying again" % wait_time
+                    release_job(server, job)
+                    time.sleep(wait_time)
+                    wait_time = wait_time * 1.4
+                    if wait_time > 250: wait_time = 250
+                    continue
         except KeyboardInterrupt:
             break
         except:

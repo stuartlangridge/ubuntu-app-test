@@ -1,0 +1,93 @@
+#!/bin/bash
+# Get click and make sure it is something we want to test
+# $1 is click url
+# $2 is device serial number
+# e.g. ./runtest /click/20151126103906-PLBRWIBL9X 0050aba613958223 mako portait
+
+CLICK_URL=$1
+DEVICEID=$2
+DEVICE_TYPE=$3
+ORIENTATION=$4
+CHECKSDIR=$5
+TMPDIR=$(mktemp -d)
+TARGETUSER="phablet"
+TARGET="/home/$TARGETUSER"
+HERE=$(pwd)
+SERVERHOST="http://marvin.popey.com"
+
+
+echo $(date +%Y-%m-%d-%H%M%S) $CLICK_URL
+echo $(date +%Y-%m-%d-%H%M%S) $DEVICEID
+
+mkdir $CHECKSDIR
+
+wget -P $TMPDIR --content-disposition $SERVERHOST$CLICK_URL
+
+FILE=$(ls $TMPDIR/*.click)
+FILENAME=$(basename $FILE)
+DESKTOPFILE=$(echo $FILENAME | tr '-' '_')
+
+# First we use click-review to make sure it won't fall foul of that
+
+click-review $FILE | tee -a $CHECKSDIR/click-review.txt
+# Workaround until bug http://pad.lv/1523255 is fixed
+CONTAINS_ERRORS=$(grep ^Errors $CHECKSDIR/click-review.txt)
+CONTAINS_WARNINGS=$(grep ^Warnings $CHECKSDIR/click-review.txt)
+
+if [ -n "${CONTAINS_ERRORS}" ]; then
+  echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE failed, errors found"
+  exit 1
+fi
+if [ -n "${CONTAINS_WARNINGS}" ]; then
+  echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE generated warnings, running anyway"
+fi
+
+# Unpack & get data out of the click
+cd $TMPDIR
+ar -x $FILENAME
+tar xf control.tar.*
+if [ "$?" != "0" ];
+then
+  echo "Problem unpacking control.tar.* from $FILENAME"
+  exit 2
+fi
+#APP_ID=$(jq -r '.name' < ./manifest)
+#VERSION=$(jq -r '.version' < ./manifest)
+#MAINTAINER=$(jq -r '.maintainer' < ./manifest | tr "," " ")
+FRAMEWORK=$(jq -r '.framework' < ./manifest)
+# APPARMORFILES=$(jq '.hooks | .. | .apparmor ' < ./manifest | grep \" | sed 's/ /\\ /g' | tr -d \" |perl -pe 'chomp if eof' | tr "\n" " ")
+APPARMORFILES=$(jq '.hooks | .. | .apparmor ' < ./manifest | grep \" | sed 's/ /\\ /g' |perl -pe 'chomp if eof' | tr "\n" " ")
+tar xf data.tar.*
+if [ "$?" != "0" ];
+then
+  echo "Problem unpacking data.tar.* from $FILENAME"
+  exit 3
+fi
+# Might be multiple APPARMORFILES
+TEMPLATES=""
+for a in $(echo $APPARMORFILES| tr -d \")
+do
+  # echo $a
+  if [ -f $a ];
+  then
+    # echo "File $a exists."
+    TEMPLATE=$(jq '.template' < $a | tr -d \")
+    if [ "$TEMPLATE" == "null" ]; then
+      TEMPLATE="none"
+    fi
+  else
+    echo "File $a does not exist."
+    BROKEN=$(mktemp)
+    echo $TMPDIR
+    TEMPLATE="missing"
+  fi
+  TEMPLATES="$TEMPLATES $TEMPLATE"
+  POLICY_GROUPS=$(jq -r '.policy_groups' < $a | tr -d [ | tr -d ] | tr "\n" " " | tr -d "," | tr -d '"')
+  #if [ "$POLICY_GROUPS" == "" ]; then
+  #	POLICY_GROUPS="none"
+  #fi
+done
+if [[ "$TEMPLATES" =~ "ubuntu-scope-network" ]]; then
+  echo "This is a scope, abort for now"
+  exit 4
+fi
