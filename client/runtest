@@ -2,13 +2,14 @@
 # Get click and test it
 # $1 is click url
 # $2 is device serial number
-# e.g. ./runtest /click/20151126103906-PLBRWIBL9X 0050aba613958223 mako portait
+# e.g. ./runtest /click/20151126103906-PLBRWIBL9X 0050aba613958223 mako portait /tmp/foo
 
 CLICK_URL=$1
 DEVICEID=$2
 DEVICE_TYPE=$3
 ORIENTATION=$4
 RESULTSDIR=$5
+FRIENDLYNAME=$(echo $6 | tr " " "_")
 TMPDIR=$(mktemp -d)
 TARGETUSER="phablet"
 TARGET="/home/$TARGETUSER"
@@ -54,7 +55,7 @@ function screen_grab {
 #  adb -s $DEVICEID shell "kill -SIGCONT \$(pidof unity8)"
   SILLYFILE=`/usr/bin/adb -s $DEVICEID shell ls -1 /tmp/mir_screencast*|tr -d '\r'`
   adb -s $DEVICEID pull "$SILLYFILE" $RESULTSDIR/screenshot.rgba
-  convert -depth 8 -size $SIZE $RESULTSDIR/screenshot.rgba $RESULTSDIR/$LAUNCH-$DEVICE_TYPE-$1.png
+  convert -depth 8 -size $SIZE $RESULTSDIR/screenshot.rgba $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-$1.png
   rm $RESULTSDIR/screenshot.rgba
 }
 
@@ -62,9 +63,9 @@ function get_logs {
   # Get data about the version of ubuntu on the device
   adb -s $DEVICEID shell "system-image-cli --info" > $RESULTSDIR/device-version.txt
   # Get the application log
-  adb -s $DEVICEID pull $TARGET/.cache/upstart/application-click-$LAUNCH.log $RESULTSDIR/$LAUNCH-$DEVICE_TYPE-application-log.txt
+  adb -s $DEVICEID pull $TARGET/.cache/upstart/application-click-$LAUNCH.log $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-application-log.txt
   # Get kernel output associated with the app
-  adb -s $DEVICEID shell "sudo dmesg -T | grep $LAUNCH" > $RESULTSDIR/$LAUNCH-$DEVICE_TYPE-dmesg.txt
+  adb -s $DEVICEID shell "sudo dmesg -T | grep $LAUNCH" > $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-dmesg.txt
 }
 
 echo $(date +%Y-%m-%d-%H%M%S) $CLICK_URL
@@ -156,6 +157,8 @@ else
       echo "$REMOVECLICK"
       $REMOVECLICK
     done
+    # Refresh app scope
+    adb -s $DEVICEID shell dbus-send /com/canonical/unity/scopes com.canonical.unity.scopes.InvalidateResults string:clickscope
 
     # Clean up app data and logs created by the app
     # FIXME: These directory names aren't quite right

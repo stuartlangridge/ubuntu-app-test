@@ -54,8 +54,8 @@ def do_test(params, job):
     print "****************** This is implemented in runtest bash script."
     print "****************** Which should move to this python script ASAP"
     # We pass the url to the click, device serial number and type and orientation
-    # e.g. ./runtest /click/20151126103906-PLBRWIBL9X 0050aba613958223 mako portait /tmp/foo
-    runtest_cmd = "./runtest " + job["click"] + " " + params[0] + " " + params[1] + " " + params[2] + " " + resultsdir
+    # e.g. ./runtest /click/20151126103906-PLBRWIBL9X 0050aba613958223 mako portait /tmp/foo Nexus 4
+    runtest_cmd = "./runtest " + job["click"] + " " + params[0] + " " + params[1] + " " + params[2] + " " + resultsdir + " " + args.device.replace(" ", "_")
     print runtest_cmd
     testresult = subprocess.call(runtest_cmd, shell=True)
     if testresult == 0:
