@@ -33,16 +33,16 @@ def do_provision(device):
     provision.provision(device, network_file=os.path.expanduser("~/.ubuntu-ci/wifi.conf"))
 
 def do_checks(params, job):
-    checksdir = tempfile.mktemp(prefix="tmp")
+    resultsdir = tempfile.mktemp(prefix="tmp")
     print "Checking click package"
-    runchecks_cmd = "./runchecks " + job["click"] + " " + params[0] + " " + params[1] + " " + params[2] + " " + checksdir
+    runchecks_cmd = "./runchecks " + job["click"] + " " + params[0] + " " + params[1] + " " + params[2] + " " + resultsdir
     print runchecks_cmd
     checkresult = subprocess.call(runchecks_cmd, shell=True)
     if checkresult == 0:
         success = True
     else:
         success = False
-    return success, {"checksdir": checksdir}
+    return success, {"resultsdir": resultsdir}
 
 def do_test(params, job):
     resultsdir = tempfile.mktemp(prefix="tmp")
@@ -178,6 +178,9 @@ def check_forever(server, device, test_params):
                 else:
                     # Re-provision the device on errors, as this may fix the issue
                     do_provision(device=args.params[0])
+            else:
+                wait_time = 1
+                deal_with_results(job, results)
             if not (checksuccess and testsuccess):
                     # wait for wait_time, because we did not succeed, meaning this job went wrong
                     print "Job failed: releasing job, then waiting %s seconds and trying again" % wait_time

@@ -87,7 +87,11 @@ do
   #	POLICY_GROUPS="none"
   #fi
 done
-if [[ "$TEMPLATES" =~ "ubuntu-scope-network" ]]; then
-  echo "This is a scope, abort for now"
+if [[ "$TEMPLATES" =~ "ubuntu-webapp" ]]; then
+  echo "Webapps are currently not supported, due to the lack of network access on the devices." | tee -a $CHECKSDIR/check-errors.txt
   exit 4
+fi
+if [[ "$TEMPLATES" =~ "ubuntu-scope-network" ]]; then
+  echo "Scopes are currently not supported." | tee -a $CHECKSDIR/check-errors.txt
+  exit 5
 fi
