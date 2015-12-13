@@ -99,7 +99,7 @@ echo $(date +%Y-%m-%d-%H%M%S) Pushing $FILE to $TARGET
 adb -s $DEVICEID push $FILE $TARGET
 if [ "$?" != "0" ]; then
     echo $(date +%Y-%m-%d-%H%M%S) Push failed
-    echo "There was a problem pushing $FILE to $DEVICE_TYPE on $HOSTNAME at $(date +%Y-%m-%d-%H%M%S). Please try again later." > $RESULTSDIR/errors.txt
+    echo "There was a problem pushing $FILE to $DEVICE_TYPE on $HOSTNAME at $(date +%Y-%m-%d-%H%M%S). Please try again later." >> $RESULTSDIR/errors.txt
     # attempt basic remedial measure of rebooting device
     adb -s $DEVICEID reboot
     exit 2
@@ -131,21 +131,34 @@ else
     adb -s $DEVICEID shell gdbus call --session --dest com.canonical.UnityGreeter --object-path / --method com.canonical.UnityGreeter.HideGreeter
     # Refresh app scope
     adb -s $DEVICEID shell dbus-send /com/canonical/unity/scopes com.canonical.unity.scopes.InvalidateResults string:clickscope
-    pause 5
+    pause 1
     # Trim desktop filename
     LAUNCH=$(basename $DESKTOP | sed 's/.desktop//')
     # shut off the network
     adb -s $DEVICEID shell nmcli n off
-    #adb -s $DEVICEID shell sudo -u phablet -i start application APP_ID=$LAUNCH 2>&1 | tee -a $RESULTSDIR/launch.log
     # Screenshot the app scope (should be on screen by default) so the dev sees their icon/text
     screen_grab 0
     adb -s $DEVICEID shell "ubuntu-app-launch $LAUNCH" 2>&1 | tee -a $RESULTSDIR/$LAUNCH-$DEVICE_TYPE-launch.txt
-    # Get initial screenshot
-    screen_grab 1
-    pause 5
-    screen_grab 2
-    pause 5
-    screen_grab 3
+    # Get three more screenshots
+    for counter in 1 2 3
+    do
+      # Check if app is still running, if so, grab a screenshot
+      adb -s $DEVICEID shell "ubuntu-app-list | grep $LAUNCH"
+      if [ "$?" == "0" ]
+      then
+        # Unnecessary
+        #echo $(date +%Y-%m-%d-%H%M%S) "Application running, taking screenshot" | tee -a >> $RESULTSDIR/launch.txt
+        screen_grab $counter
+      else
+        # If the app is no longer running, it probably died, no point taking
+        # a screenshot at this point
+        echo $(date +%Y-%m-%d-%H%M%S) "Application no longer running, probably died" | tee -a >> $RESULTSDIR/launch.txt
+      fi
+      if [ "$counter" -lt "3" ]
+      then
+        pause 5
+      fi
+    done
     # stop app
     adb -s $DEVICEID shell "ubuntu-app-stop $LAUNCH"
     # Get logs
