@@ -2,13 +2,23 @@
 {% block title %}Upload{% endblock %}
 {% block head %}
 {{ super() }}
+<link rel="stylesheet" href="/static/dropzone.css">
 <style type="text/css">
     .important { color: #336699; }
+    #uploadError {
+        border: 1px solid #903;
+        background: #c66;
+        color: white;
+        padding: 1em;
+        margin: 0;
+    }
+    #uploadError:empty { display: none; }
 </style>
 {% endblock %}
 {% block content %}
 <h1>Upload your click</h1>
-<form action="upload" method="POST" enctype="multipart/form-data">
+<form action="upload" method="POST" enctype="multipart/form-data" class="dropzone" id="uploadForm">
+    <p id="uploadError"></p>
     <p><input type="file" name="click"></p>
     <p><label>Email: <input type="email" name="email"></label></p>
     <p>Devices to test on:</p>
@@ -22,4 +32,43 @@
     </ul>
     <p><input type=submit value="Upload"></p>
 </form>
+<script src="/static/dropzone.js"></script>
+<script>
+if (window.Dropzone) {
+    Dropzone.autoDiscover = false;
+    var uplf = document.getElementById("uploadForm");
+    var dz = new Dropzone("#uploadForm", {
+        paramName: "click",
+        acceptedFiles: ".click",
+        maxFiles: 1,
+        autoProcessQueue: false,
+        dictDefaultMessage: "Drag and drop a click package here, or click to select one",
+        init: function() {
+            var origFileUpload = document.querySelector("input[name=click]");
+            origFileUpload.parentNode.removeChild(origFileUpload);
+            this.on("uploadprogress", function(fileObj, progressPC, bytes) {
+                console.log("progress", progressPC);
+            });
+            this.on("success", function(fileObj, response) {
+                location.href = response;
+            });
+            this.on("error", function(fileObj, error) {
+                // errors are done by throwing a server error with plain text response
+                var upe = document.getElementById("uploadError");
+                upe.innerHTML = "";
+                upe.appendChild(document.createTextNode(error));
+                dz.removeAllFiles(true);
+            });
+        }
+    });
+
+    uplf.onsubmit = function(e) {
+        e.preventDefault();
+        if (dz.files.length !== 1) {
+            
+        }
+        dz.processQueue();
+    };
+}
+</script>
 {% endblock %}
