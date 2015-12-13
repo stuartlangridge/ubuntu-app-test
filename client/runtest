@@ -16,6 +16,16 @@ TARGET="/home/$TARGETUSER"
 HERE=$(pwd)
 SERVERHOST="http://marvin.popey.com"
 
+function dedupe {
+  # This needs to be more robust. Images rarely pass this.
+  # Passed two images, if the same, second one is deleted
+  diff $1 $2
+  if [ "?$" == "0" ]
+  then
+    rm $2
+  fi
+}
+
 function pause {
     echo $(date +%Y-%m-%d-%H%M%S) "Waiting $1"
     sleep $1
@@ -161,6 +171,9 @@ else
     done
     # stop app
     adb -s $DEVICEID shell "ubuntu-app-stop $LAUNCH"
+    # De-duplicate screenshot 2 and 3 (as they may be the same) to save space
+    # and email bandwidth
+    dedupe $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-$2.png $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-$3.png
     # Get logs
     get_logs
     # Remove any click packages remaining (clean up after our app)
