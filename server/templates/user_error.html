@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Error{% endblock %}
+{% block head %}
+{{ super() }}
+<style>
+p.err {
+    padding: 1em;
+    border-radius: 3px;
+    border: 1px solid #d4d3d2;
+    background: #f7f6f5;
+    font-family: monospace;
+    font-size: 10px;
+    color: #903;
+}
+</style>
+{% endblock %}
+{% block content %}
+<h1>Error</h1>
+
+<p>Oh dear. Something went wrong. Apparently, it was this:</p>
+<p class="err">{{message}}</p>
+<p>Maybe you can try again. Or, you know, just sit and look sad about it.</p>
+
+{% endblock %}

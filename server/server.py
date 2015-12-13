@@ -169,13 +169,13 @@ def upload():
                     "status": "pending"
                 })
         if not metadata["devices"]:
-            return "You have to specify at least one device."
+            return render_template("user_error.html", message="You have to specify at least one device.")
         db, crs = get_db()
         crs.execute("select count(*) from requests where time > datetime('now','-1 hour') and (ip = ? or email = ?)",
             (request.remote_addr, metadata["email"]))
         res = crs.fetchone()
         if res and res[0] > 3:
-            return "Overuse error: you have overrun the rate limit. Please wait an hour"
+            return render_template("user_error.html", message="Overuse error: you have overrun the rate limit. Please wait an hour.")
 
         ndir = "%s-%s" % (datetime.datetime.now().strftime("%Y%m%d%H%M%S"), randomstring(10))
         ndirpath = os.path.join(app.config['UPLOAD_FOLDER'], ndir)
@@ -202,7 +202,7 @@ def upload():
         db.commit()
         return redirect(url_for('status', uid=ndir))
     else:
-        return "failure.", 400
+        return render_template("user_error.html", message="That doesn't seem to be a legitimate click package."), 400
 
 @app.route("/status/<uid>")
 def status(uid):
