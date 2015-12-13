@@ -112,6 +112,18 @@ def requires_auth(f):
 def frontpage():
     return render_template("upload.html", devices=get_known_devices())
 
+@app.route("/about")
+def about():
+    return render_template("about.html")
+
+@app.route("/faq")
+def faq():
+    return render_template("faq.html")
+
+@app.route("/contact")
+def contact():
+    return render_template("contact.html")
+
 @app.route("/admin")
 @requires_auth
 def admin():

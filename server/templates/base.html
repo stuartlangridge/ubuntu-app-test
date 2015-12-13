@@ -7,11 +7,21 @@
     {% endblock %}
 </head>
 <body>
-    <div id="content">{% block content %}{% endblock %}</div>
-    <div id="footer">
-        {% block footer %}
-        this is a popey and sil thing.
-        {% endblock %}
+    <div id="main">
+        <div id="cssmenu">
+            <ul>
+                <li class='active'><a href='/'><span>Upload</span></a></li>
+                <li><a href='/about'><span>About</span></a></li>
+                <li><a href='/faq'><span>FAQ</span></a></li>
+                <li class='last'><a href='/contact'><span>Contact</span></a></li>
+            </ul>
+        </div>
+        <div id="content">{% block content %}{% endblock %}</div>
+        <div id="footer">
+            {% block footer %}
+            this is a popey and sil thing.
+            {% endblock %}
+        </div>
     </div>
 </body>
 </html>

@@ -1,1 +1,143 @@
-h1 { color: red; }
+body {
+    font-family: 'Ubuntu', sans-serif;
+    color: #333333;
+    background-image: url("/static/background-paper.png");
+}
+
+#main {
+    width: 80vw;
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: 0px 0px 3px #C9C9C9;
+    background-color: white;
+    border-radius: 4px;
+}
+
+h1 {
+    font-size: 2.8125em;
+    font-weight: 300;
+    padding-bottom: 10px;
+    color: #DD4814;
+}
+
+#content {
+    padding: 0 12.5% 3em;
+}
+
+#cssmenu {
+    width: auto;
+}
+
+#cssmenu ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+    display: block;
+    zoom: 1;
+}
+
+#cssmenu ul:after {
+    content: " ";
+    display: block;
+    font-size: 0;
+    height: 0;
+    clear: both;
+    visibility: hidden;
+}
+
+#cssmenu ul li {
+    display: inline-block;
+    padding: 0;
+    margin: 0;
+}
+
+#cssmenu.align-right ul li {
+    float: right;
+}
+
+#cssmenu.align-center ul {
+    text-align: center;
+}
+
+#cssmenu ul li a {
+    color: #AEA79F;
+    text-decoration: none;
+    display: block;
+    padding: 15px 25px;
+    font-family: 'Ubuntu', sans-serif;
+    font-weight: 300;
+    font-size: 16px;
+    position: relative;
+    -webkit-transition: color .25s;
+    -moz-transition: color .25s;
+    -ms-transition: color .25s;
+    -o-transition: color .25s;
+    transition: color .25s;
+    text-align: center;
+}
+
+#cssmenu ul li a:hover {
+    COLOR: #E36C43;
+}
+
+#cssmenu ul li a:hover:before {
+    width: 100%;
+}
+
+#cssmenu ul li a:after {
+    content: "";
+    display: block;
+    position: absolute;
+    right: -3px;
+    top: 16px;
+    height: 16px;
+    width: 6px;
+}
+
+#cssmenu ul li a:before {
+    content: "";
+    display: block;
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 2px;
+    width: 0;
+    background: #DD4814;
+    -webkit-transition: width .25s;
+    -moz-transition: width .25s;
+    -ms-transition: width .25s;
+    -o-transition: width .25s;
+    transition: width .25s;
+}
+
+#cssmenu ul li.last > a:after,
+#cssmenu ul li:last-child > a:after {
+    display: none;
+}
+
+#cssmenu ul li.active a {
+    color: #DD4814;
+}
+
+#cssmenu ul li.active a:before {
+    width: 100%;
+}
+
+#cssmenu.align-right li.last > a:after,
+#cssmenu.align-right li:last-child > a:after {
+    display: block;
+}
+
+#cssmenu.align-right li:first-child a:after {
+    display: none;
+}
+
+
+div#footer {
+    position: fixed;
+    bottom: 5px;
+    right: 5px;
+    opacity: 0.6
+}
