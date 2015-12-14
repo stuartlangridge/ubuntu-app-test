@@ -110,7 +110,8 @@ def requires_auth(f):
 ####################### routes
 @app.route("/")
 def frontpage():
-    return render_template("upload.html", devices=get_known_devices())
+    is_paused = os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], "PAUSED"))
+    return render_template("upload.html", devices=get_known_devices(), is_paused=is_paused)
 
 @app.route("/about")
 def about():
@@ -127,6 +128,7 @@ def contact():
 @app.route("/admin")
 @requires_auth
 def admin():
+    is_paused = os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], "PAUSED"))
     queue = []
     subfols = os.listdir(app.config["UPLOAD_FOLDER"])
     for fol in subfols:
@@ -140,12 +142,29 @@ def admin():
             cleanupable = True
             if metadata.get("devices", []):
                 cleanupable = all([x.get("status") == "finished" for x in metadata["devices"]])
+            click = os.path.join(ffol, metadata["filename"])
+            if not os.path.exists(click):
+                dt = os.stat(ometa).st_ctime
+            else:
+                dt = os.stat(click).st_ctime
             queue.append({"uid": fol, "metadata": metadata, "cleanupable": cleanupable,
-                "dt": os.stat(ometa).st_ctime,
-                "dta": time.asctime(time.gmtime(os.stat(ometa).st_ctime))})
+                "dt": dt,
+                "dta": time.asctime(time.gmtime(dt))})
     queue.sort(cmp=lambda a,b:cmp(a["dt"], b["dt"]))
     return render_template("admin.html", devices=get_known_devices(),
-        queue=queue)
+        queue=queue, is_paused=is_paused)
+
+@app.route("/togglepause", methods=["POST"])
+@requires_auth
+def togglepause():
+    pauseflag = os.path.join(app.config["UPLOAD_FOLDER"], "PAUSED")
+    if os.path.exists(pauseflag):
+        os.unlink(pauseflag)
+    else:
+        fp = open(pauseflag, "w")
+        fp.write("  ")
+        fp.close()
+    return redirect(url_for("admin"))
 
 @app.route("/devicecount")
 def devicecount():
@@ -153,6 +172,9 @@ def devicecount():
 
 @app.route("/upload", methods=["POST"])
 def upload():
+    is_paused = os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], "PAUSED"))
+    if is_paused:
+        return render_template("user_error.html", message="Uploads are not available at the moment")
     file = request.files["click"]
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
@@ -225,6 +247,10 @@ def claim():
     if request.args.get("claim_secret") != claim_secret:
         return json.dumps({"error": "Bad claim secret"}), 400, {'Content-Type': 'application/json'}
 
+    is_paused = os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], "PAUSED"))
+    if is_paused:
+        return json.dumps({"job": None}), 200, {'Content-Type': 'application/json'}
+
     save_device(device)
     device_code = [x["code"] for x in get_known_devices() if x["printable"] == device][0]
 
@@ -243,7 +269,7 @@ def claim():
                         ds["status"] = "claimed"
                         metadata["devices"] = device_status
                         fp = codecs.open(ometa, mode="w", encoding="utf8")
-                        json.dump(metadata, fp)
+                        json.dump(metadata, fp, indent=2)
                         fp.close()
                         return json.dumps({
                             "job": fol,
@@ -252,6 +278,40 @@ def claim():
                             "metadata": metadata
                         }), 200, {'Content-Type': 'application/json'}
     return json.dumps({"job": None}), 200, {'Content-Type': 'application/json'}
+
+@app.route("/unclaim/<uid>/<device_code>")
+def unclaim(uid, device_code):
+    device_printable = [x["printable"] for x in get_known_devices() if x["code"] == device_code]
+    if not device_printable:
+        return json.dumps({"error": "Bad device code"}), 400, {'Content-Type': 'application/json'}
+    device = device_printable[0]
+    if not uid:
+        return json.dumps({"error": "No job specified"}), 400, {'Content-Type': 'application/json'}
+    if not re.match("^[0-9]{14}-[A-Z0-9]{10}$", uid):
+        return json.dumps({"error": "Invalid job ID"}), 400, {'Content-Type': 'application/json'}
+    if request.args.get("claim_secret") != claim_secret:
+        return json.dumps({"error": "Bad claim secret"}), 400, {'Content-Type': 'application/json'}
+
+    ometa = os.path.join(app.config["UPLOAD_FOLDER"], uid, "metadata.json")
+    if not os.path.exists(ometa):
+        return json.dumps({"error": "No such job"}), 400, {'Content-Type': 'application/json'}
+
+    fp = codecs.open(ometa, encoding="utf8")
+    metadata = json.load(fp)
+    fp.close()
+    failures = metadata.get("failures", 0)
+    metadata["failures"] = failures + 1
+    device_status = metadata.get("devices", [])
+    for ds in device_status:
+        if ds["printable"] == device:
+            if ds["status"] == "claimed":
+                ds["status"] = "pending"
+                metadata["devices"] = device_status
+                fp = codecs.open(ometa, mode="w", encoding="utf8")
+                json.dump(metadata, fp, indent=2)
+                fp.close()
+                return json.dumps({"unclaimed": True}), 200, {'Content-Type': 'application/json'}
+    return json.dumps({"unclaimed": False, "error": "Not your job to unclaim"}), 200, {'Content-Type': 'application/json'}
 
 @app.route("/click/<uid>")
 def click(uid):
@@ -289,7 +349,7 @@ def finished(uid, device_code):
                 ds["status"] = "finished"
                 metadata["devices"] = device_status
                 fp = codecs.open(ometa, mode="w", encoding="utf8")
-                json.dump(metadata, fp)
+                json.dump(metadata, fp, indent=2)
                 fp.close()
                 return json.dumps({"status": "finished"}), 200, {'Content-Type': 'application/json'}
             else:
