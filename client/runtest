@@ -218,7 +218,7 @@ else
   # Turn on screen time out of 1 min
   adb -s $DEVICEID shell gsettings set com.ubuntu.touch.system activity-timeout 60
   # Find the powerd-cli process we started from above
-  POWERDPID=$(adb shell pidof powerd-cli | tr -d '\r')
+  POWERDPID=$(adb -s $DEVICEID shell pidof powerd-cli | tr -d '\r')
   # Kill it (there's probably a better way)
   adb -s $DEVICEID shell kill $POWERDPID
   # Restart power daemon
