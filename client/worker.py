@@ -127,8 +127,14 @@ def release_job(server, job):
     fp.close()
     return data
 
-def unclaim_job(server, job)
+def unclaim_job(server, job):
     fp = urllib.urlopen(urlparse.urljoin(server, job["unclaim"]))
+    data = json.load(fp)
+    fp.close()
+    return data
+
+def failed_job(server, job):
+    fp = urllib.urlopen(urlparse.urljoin(server, job["failed"]))
     data = json.load(fp)
     fp.close()
     return data
@@ -183,19 +189,17 @@ def check_forever(server, device, test_params):
                     wait_time = 1
                 else:
                     # Re-provision the device on errors, as this may fix the issue
-                    unclaim_job(server, job)
                     do_provision(device=args.params[0])
             else:
                 wait_time = 1
                 deal_with_results(job, results)
             if not (checksuccess and testsuccess):
                     # wait for wait_time, because we did not succeed, meaning this job went wrong
-                    print "Job failed: releasing job, then waiting %s seconds and trying again" % wait_time
-                    release_job(server, job)
-                    time.sleep(wait_time)
-                    wait_time = wait_time * 1.4
-                    if wait_time > 250: wait_time = 250
-                    continue
+                    if job["metadata"]["failures"] > 5:
+                        failed_job(server,job)
+                    else:
+                        print "Job failed: unclaiming job, then waiting %s seconds and trying again" % wait_time
+                        unclaim_job(server, job)
         except KeyboardInterrupt:
             break
         except:
