@@ -38,6 +38,9 @@
 {% endblock %}
 {% block content %}
 <h1>The queue</h1>
+<form action="/togglepause" method="POST">
+    <input type="submit" value="{% if is_paused %}Unpause the server{% else %}Pause the server{% endif %}">
+</form>
 <dl>
 {% for item in queue %}
     <dt><em>{{item.metadata.email}}</em> uploaded <a href="/click/{{item.uid}}">{{item.metadata.filename}}</a> at {{item.dta}}</dt>
