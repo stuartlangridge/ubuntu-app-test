@@ -65,8 +65,13 @@ function screen_grab {
   adb -s $DEVICEID shell mirscreencast -m /var/run/mir_socket  -n1
 #  adb -s $DEVICEID shell "kill -SIGCONT \$(pidof unity8)"
   SILLYFILE=`/usr/bin/adb -s $DEVICEID shell ls -1 /tmp/mir_screencast*|tr -d '\r'`
+  if [ "$ORIENTATION" == "landscape" ]; then
+    ROTATEOPT="-rotate -90"
+  else
+    ROTATEOPT="-rotate 0"
+  fi
   adb -s $DEVICEID pull "$SILLYFILE" $RESULTSDIR/screenshot.rgba
-  convert -depth 8 -size $SIZE $RESULTSDIR/screenshot.rgba $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-$1.png
+  convert $ROTATEOPT -depth 8 -size $SIZE $RESULTSDIR/screenshot.rgba $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-$1.png
   exiftool -all= -overwrite_original $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-$1.png
   rm $RESULTSDIR/screenshot.rgba
 }
@@ -183,7 +188,14 @@ else
     fi
   done
   # stop app
-  adb -s $DEVICEID shell "ubuntu-app-stop $LAUNCH"
+  if [ "$APPTYPE" == "app" ]
+  then
+    # Stop the app
+    adb -s $DEVICEID shell "ubuntu-app-stop $LAUNCH"
+  else
+    # Switch away from scope
+    adb -s $DEVICEID shell "dbus-send --print-reply --dest=com.canonical.URLDispatcher /com/canonical/URLDispatcher com.canonical.URLDispatcher.DispatchURL string:'scope://com.canonical.scopes.click' string:''"
+  fi
   # Get logs
   get_logs
   # Remove any click packages remaining (clean up after our app)
