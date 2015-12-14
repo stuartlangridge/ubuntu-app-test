@@ -127,6 +127,12 @@ def release_job(server, job):
     fp.close()
     return data
 
+def unclaim_job(server, job)
+    fp = urllib.urlopen(urlparse.urljoin(server, job["unclaim"]))
+    data = json.load(fp)
+    fp.close()
+    return data
+
 def get_job(server, device):
     p = list(urlparse.urlparse(urlparse.urljoin(server, "/claim")))
     p[4] = urllib.urlencode({"device": device, "claim_secret": claim_secret})
@@ -177,6 +183,7 @@ def check_forever(server, device, test_params):
                     wait_time = 1
                 else:
                     # Re-provision the device on errors, as this may fix the issue
+                    unclaim_job(server, job)
                     do_provision(device=args.params[0])
             else:
                 wait_time = 1
