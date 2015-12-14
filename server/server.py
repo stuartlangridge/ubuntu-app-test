@@ -184,7 +184,8 @@ def upload():
             "email": request.form['email'],
             "filename": filename,
             "devices": [],
-            "time": time.time()
+            "time": time.time(),
+            "failures": 0
         }
         for device in get_known_devices():
             if request.form.get("device_%s" % device["code"]) == "on":
@@ -264,6 +265,7 @@ def claim():
             fp = codecs.open(ometa, encoding="utf8")
             metadata = json.load(fp)
             fp.close()
+            if "failures" not in metadata: metadata["failures"] = 0
             device_status = metadata.get("devices", [])
             for ds in device_status:
                 if ds["printable"] == device:
