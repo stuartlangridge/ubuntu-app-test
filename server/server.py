@@ -153,16 +153,8 @@ def devicecount():
 
 @app.route("/upload", methods=["POST"])
 def upload():
-    isxhr = request.headers.get('X-Requested-With') == "XMLHttpRequest"
-    def returnResponse(template, message):
-        if isxhr:
-            return message, 400
-        else:
-            return render_template(template, message=message), 400
     file = request.files["click"]
     if file and allowed_file(file.filename):
-        if not request.form.get("email"):
-            return returnResponse("user_error.html", message="You must specify your email address.")
         filename = secure_filename(file.filename)
         metadata = {
             "email": request.form['email'],
@@ -177,13 +169,13 @@ def upload():
                     "status": "pending"
                 })
         if not metadata["devices"]:
-            return returnResponse("user_error.html", message="You have to specify at least one device.")
+            return render_template("user_error.html", message="You have to specify at least one device.")
         db, crs = get_db()
         crs.execute("select count(*) from requests where time > datetime('now','-1 hour') and (ip = ? or email = ?)",
             (request.remote_addr, metadata["email"]))
         res = crs.fetchone()
         if res and res[0] > 3:
-            return returnResponse("user_error.html", message="Overuse error: you have overrun the rate limit. Please wait an hour.")
+            return render_template("user_error.html", message="Overuse error: you have overrun the rate limit. Please wait an hour.")
 
         ndir = "%s-%s" % (datetime.datetime.now().strftime("%Y%m%d%H%M%S"), randomstring(10))
         ndirpath = os.path.join(app.config['UPLOAD_FOLDER'], ndir)
@@ -208,11 +200,9 @@ def upload():
                 deviceid = crs.lastrowid
             crs.execute("insert into request2device (requestid, deviceid) values (?,?)", (requestid, deviceid))
         db.commit()
-        if isxhr:
-            return url_for('status', uid=ndir)
         return redirect(url_for('status', uid=ndir))
     else:
-        return returnResponse("user_error.html", message="That doesn't seem to be a legitimate click package.")
+        return render_template("user_error.html", message="That doesn't seem to be a legitimate click package."), 400
 
 @app.route("/status/<uid>")
 def status(uid):
