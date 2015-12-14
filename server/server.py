@@ -251,6 +251,7 @@ def claim():
                             "job": fol,
                             "click": url_for("click", uid=fol),
                             "finished": url_for("finished", uid=fol, device_code=device_code),
+                            "failed": url_for("failed", uid=fol, device_code=device_code),
                             "metadata": metadata,
                             "unclaim": url_for("unclaim", uid=fol, device_code=device_code, claim_secret=claim_secret)
                         }), 200, {'Content-Type': 'application/json'}
@@ -305,8 +306,7 @@ def click(uid):
         return "No such click", 404
     return send_from_directory(folder, metadata["filename"], as_attachment=True)
 
-@app.route("/finished/<uid>/<device_code>")
-def finished(uid, device_code):
+def completed(uid, device_code, resolution):
     device_printable = [x["printable"] for x in get_known_devices() if x["code"] == device_code]
     if not device_printable:
         return json.dumps({"error": "Bad device code"}), 400, {'Content-Type': 'application/json'}
@@ -323,15 +323,23 @@ def finished(uid, device_code):
     for ds in device_status:
         if ds["printable"] == device:
             if ds["status"] == "claimed":
-                ds["status"] = "finished"
+                ds["status"] = resolution
                 metadata["devices"] = device_status
                 fp = codecs.open(ometa, mode="w", encoding="utf8")
                 json.dump(metadata, fp)
                 fp.close()
-                return json.dumps({"status": "finished"}), 200, {'Content-Type': 'application/json'}
+                return json.dumps({"status": resolution}), 200, {'Content-Type': 'application/json'}
             else:
                 return json.dumps({"error": "Job not in state 'claimed' (in state '%s')" % ds["status"]}), 400, {'Content-Type': 'application/json'}
     return json.dumps({"error": "No such job"}), 400, {'Content-Type': 'application/json'}
+
+@app.route("/finished/<uid>/<device_code>")
+def finished(uid, device_code):
+    return completed(uid, device_code, "finished")
+
+@app.route("/failed/<uid>/<device_code>")
+def failed(uid, device_code):
+    return completed(uid, device_code, "failed")
 
 @app.route("/cleanup")
 def cleanup():
