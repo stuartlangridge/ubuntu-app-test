@@ -13,6 +13,12 @@
         margin: 0;
     }
     #uploadError:empty { display: none; }
+    input[type=submit] {
+        font-size: 2em;
+    }
+    p.submit {
+        text-align: center;
+    }
 </style>
 {% endblock %}
 {% block content %}
@@ -30,20 +36,27 @@
         <li>...no test devices are currently online. Please try again later...</li>
       {% endif %}
     </ul>
-    <p><input type=submit value="Upload"></p>
+    <div class="dropzone-previews"></div>
+    <p class="submit"><input type=submit value="Upload"></p>
 </form>
 <script src="/static/dropzone.js"></script>
 <script>
 if (window.Dropzone) {
     Dropzone.autoDiscover = false;
     var uplf = document.getElementById("uploadForm");
+    var dzLive = false;
     var dz = new Dropzone("#uploadForm", {
         paramName: "click",
         acceptedFiles: ".click",
         maxFiles: 1,
+        fallback: function() {
+            // doesn't have to do anything; just it existing means that init does not run
+        },
         autoProcessQueue: false,
+        previewsContainer: "div.dropzone-previews",
         dictDefaultMessage: "Drag and drop a click package here, or click to select one",
         init: function() {
+            dzLive = true;
             var origFileUpload = document.querySelector("input[name=click]");
             origFileUpload.parentNode.removeChild(origFileUpload);
             this.on("uploadprogress", function(fileObj, progressPC, bytes) {
@@ -63,11 +76,13 @@ if (window.Dropzone) {
     });
 
     uplf.onsubmit = function(e) {
-        e.preventDefault();
-        if (dz.files.length !== 1) {
-            
+        if (dzLive) {
+            e.preventDefault();
+            if (dz.files.length !== 1) {
+                
+            }
+            dz.processQueue();
         }
-        dz.processQueue();
     };
 }
 </script>
