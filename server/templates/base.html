@@ -3,17 +3,17 @@
 <head>
     {% block head %}
     <link rel="stylesheet" href="static/style.css" />
-    <title>{% block title %}{% endblock %} - ubuntu-app-test</title>
+    <title>{% block title %}{% endblock %} - marvin</title>
     {% endblock %}
 </head>
 <body>
     <div id="main">
         <div id="cssmenu">
             <ul>
-                <li class='active'><a href='/'><span>Upload</span></a></li>
-                <li><a href='/about'><span>About</span></a></li>
-                <li><a href='/faq'><span>FAQ</span></a></li>
-                <li class='last'><a href='/contact'><span>Contact</span></a></li>
+                <li{% if self.title() == "Upload" %} class='active'{% endif %}><a href='/'><span>Upload</span></a></li>
+                <li{% if self.title() == "About" %} class='active'{% endif %}><a href='/about'><span>About</span></a></li>
+                <li{% if self.title() == "FAQ" %} class='active'{% endif %}><a href='/faq'><span>FAQ</span></a></li>
+                <li class='last{% if self.title() == "Contact" %} active{% endif %}'><a href='/contact'><span>Contact</span></a></li>
             </ul>
         </div>
         <div id="content">{% block content %}{% endblock %}</div>
