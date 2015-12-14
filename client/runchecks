@@ -3,6 +3,10 @@
 # $1 is click url
 # $2 is device serial number
 # e.g. ./runtest /click/20151126103906-PLBRWIBL9X 0050aba613958223 mako portait
+# rc2 = failed click-review
+# rc3 = problem unpacking control.tar.gz from click package
+# rc4 = problem unpacking data.tar.gz from click package
+# rc5 = webapps not currently supported
 
 CLICK_URL=$1
 DEVICEID=$2
@@ -36,7 +40,7 @@ CONTAINS_WARNINGS=$(grep ^Warnings $CHECKSDIR/click-review.txt)
 
 if [ -n "${CONTAINS_ERRORS}" ]; then
   echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE failed, errors found"
-  exit 1
+  exit 2
 fi
 if [ -n "${CONTAINS_WARNINGS}" ]; then
   echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE generated warnings, running anyway"
@@ -49,7 +53,7 @@ tar xf control.tar.*
 if [ "$?" != "0" ];
 then
   echo "Problem unpacking control.tar.* from $FILENAME"
-  exit 2
+  exit 3
 fi
 #APP_ID=$(jq -r '.name' < ./manifest)
 #VERSION=$(jq -r '.version' < ./manifest)
@@ -61,7 +65,7 @@ tar xf data.tar.*
 if [ "$?" != "0" ];
 then
   echo "Problem unpacking data.tar.* from $FILENAME"
-  exit 3
+  exit 4
 fi
 # Might be multiple APPARMORFILES
 TEMPLATES=""
@@ -89,9 +93,5 @@ do
 done
 if [[ "$TEMPLATES" =~ "ubuntu-webapp" ]]; then
   echo "Webapps are currently not supported, due to the lack of network access on the devices." | tee -a $CHECKSDIR/check-errors.txt
-  exit 4
+  exit 5
 fi
-#if [[ "$TEMPLATES" =~ "ubuntu-scope-network" ]]; then
-#  echo "Scopes are currently not supported." | tee -a $CHECKSDIR/check-errors.txt
-#  exit 5
-#fi

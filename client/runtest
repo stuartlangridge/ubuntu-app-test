@@ -3,6 +3,8 @@
 # $1 is click url
 # $2 is device serial number
 # e.g. ./runtest /click/20151126103906-PLBRWIBL9X 0050aba613958223 mako portait /tmp/foo
+# rc2 = Click package contains errors, please see log
+# rc6 = Click package couldn't be pushed to device
 
 CLICK_URL=$1
 DEVICEID=$2
@@ -103,7 +105,7 @@ CONTAINS_WARNINGS=$(grep ^Warnings $RESULTSDIR/click-review.txt)
 
 if [ -n "${CONTAINS_ERRORS}" ]; then
   echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE failed, errors found"
-  exit 1
+  exit 2
 fi
 if [ -n "${CONTAINS_WARNINGS}" ]; then
   echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE generated warnings, running anyway"
@@ -120,7 +122,7 @@ if [ "$?" != "0" ]; then
     echo "There was a problem pushing $FILE to $DEVICE_TYPE on $HOSTNAME at $(date +%Y-%m-%d-%H%M%S). Please try again later." >> $RESULTSDIR/errors.txt
     # attempt basic remedial measure of rebooting device
     adb -s $DEVICEID reboot
-    exit 2
+    exit 6
 else
   #clean out .desktop files from device so there's only one from our app (ugh)
   # FIXME: derive the desktop file name or some other way but this works :S
@@ -151,12 +153,14 @@ else
   # Screenshot the app scope (should be on screen by default) so the dev sees their icon/text
   screen_grab 0
   if [ "$EXECLINE" == "" ]; then
-    # Exec line not found, this is probably a scope
-    #echo "Exec line not found in desktop file. This is probably a scope not an app, and currently cannot be tested." | tee -a $RESULTSDIR/click-review.txt
-    #exit 3
+    # Add a delay of 5 seconds after install before launching scopes as
+    # the app scope refreshes and we capture that in screenshots
+    pause 5
     echo $(date +%Y-%m-%d-%H%M%S) Launching a scope $LAUNCH
     adb -s $DEVICEID shell "dbus-send --print-reply --dest=com.canonical.URLDispatcher /com/canonical/URLDispatcher com.canonical.URLDispatcher.DispatchURL string:'scope://$LAUNCH' string:''"
     APPTYPE="scope" 2>&1 | tee -a $RESULTSDIR/$LAUNCH-$DEVICE_TYPE-launch.txt
+    # Add delay after starting
+    pause 2
   else
     # We did find an Exec line, so chances are this is an app (not scope)
     adb -s $DEVICEID shell "ubuntu-app-launch $LAUNCH" 2>&1 | tee -a $RESULTSDIR/$LAUNCH-$DEVICE_TYPE-launch.txt

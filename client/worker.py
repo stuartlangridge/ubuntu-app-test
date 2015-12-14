@@ -42,7 +42,7 @@ def do_checks(params, job):
         success = True
     else:
         success = False
-    return success, {"resultsdir": resultsdir}
+    return success, checkresult, {"resultsdir": resultsdir}
 
 def do_test(params, job):
     resultsdir = tempfile.mktemp(prefix="tmp")
@@ -62,7 +62,7 @@ def do_test(params, job):
         success = True
     else:
         success = False
-    return success, {"resultsdir": resultsdir}
+    return success, testresult, {"resultsdir": resultsdir}
 
 def send_email(from_address, from_name, from_password, to_addresses, subject, text_body, html_body, attached_files=None):
     # Create the email
@@ -96,9 +96,32 @@ def send_email(from_address, from_name, from_password, to_addresses, subject, te
     session.sendmail(from_address, to_addresses, msg.as_string())
     print msg.as_string()
 
-def deal_with_results(job, results):
+def deal_with_results(job, results, checkresult):
     print "Now deal with the results. For example, you may want to email these results:"
     print results
+    # Return codes from
+    # runtest:-
+    # rc1 = unknown problem
+    # rc2 = failed click-review
+    # rc3 = problem unpacking control.tar.gz from click package
+    # rc4 = problem unpacking data.tar.gz from click package
+    # rc5 = webapps not currently supported
+    # runchecks:-
+    # rc2 = Click package contains errors, please see log
+    # rc6 = Click package couldn't be pushed to device
+    supplementaltext = ""
+    if checkresult == 1:
+        supplementaltext = "There was some unknown problem when testing the package. Sorry."
+    elif checkresult == 2:
+        supplementaltext = "Click package failed the click-review tools checks. Please see attached click-review.txt log for details."
+    elif checkresult == 3:
+        supplementaltext = "There was a problem unpacking the control archive in the click package. Your click package seems corrupted."
+    elif checkresult == 4:
+        supplementaltext = "There was a problem unpacking the data archive in the click package. Your click package seems corrupted."
+    elif checkresult == 5:
+        supplementaltext = "Webapps are currently not supported by this tool."
+    elif checkresult == 6:
+        supplementaltext = "\r\nThere was a problem pushing your click package to the device for testing."
     upload_files = [os.path.join(results["resultsdir"], x) for x in os.listdir(results["resultsdir"])]
     upload_files = [x for x in upload_files if os.path.isfile(x)]
     print job["metadata"]["email"]
@@ -111,8 +134,8 @@ def deal_with_results(job, results):
         from_password=creds["password"],
         to_addresses=[job["metadata"]["email"]],
         subject=job["metadata"]["filename"] + " results from Marvin ",
-        text_body="Please find attached the results of Marvin running " + job["metadata"]["filename"] + " submitted " + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(job["metadata"]["time"])),
-        html_body="<html><body>Please find attached the results of Marvin running " + job["metadata"]["filename"] + " submitted " + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(job["metadata"]["time"])),
+        text_body="Please find attached the results of Marvin running " + job["metadata"]["filename"] + " submitted " + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(job["metadata"]["time"])) + ": \r\n\r\n" + supplementaltext,
+        html_body="<html><body>Please find attached the results of Marvin running " + job["metadata"]["filename"] + " submitted " + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(job["metadata"]["time"])) + ": \r\n\r\n" + supplementaltext,
         attached_files=upload_files
     )
 
@@ -175,31 +198,52 @@ def check_forever(server, device, test_params):
                 continue
             print "Got job %s; executing." % (job,)
             checksuccess = testsuccess = True
-            checksuccess, results = do_checks(params=test_params, job=job)
+            checksuccess, checkresult, results = do_checks(params=test_params, job=job)
             if checksuccess:
-                testsuccess, results = do_test(params=test_params, job=job)
+                # Checks pass, lets test the app
+                testsuccess, testresult, results = do_test(params=test_params, job=job)
                 if testsuccess:
                     # loop around immediately: success means "we did the job OK and am ready"
                     print "Job successfully executed. Releasing job."
                     release_job(server, job)
-                    deal_with_results(job, results)
+                    deal_with_results(job, results, 0)
                     # Lets see what happens if we don't re-provision after each
                     # succcessful run
                     # do_provision(device=args.params[0])
                     wait_time = 1
                 else:
-                    # Re-provision the device on errors, as this may fix the issue
-                    do_provision(device=args.params[0])
-            else:
-                wait_time = 1
-                deal_with_results(job, results)
-            if not (checksuccess and testsuccess):
-                    # wait for wait_time, because we did not succeed, meaning this job went wrong
-                    if job["metadata"]["failures"] > 5:
+                    # If we got a return code > 1 then we know the issue
+                    # If it's 1 then we don't and should mark it a fail
+                    print "Job failed: unclaiming job, then waiting %s seconds and trying again or reprovisioning" % wait_time
+                    if testresult == 1:
+                        # Something unknown went wrong during the test
+                        # unclaim the job
+                        unclaim_job(server,job)
+                        # Reprovision in case it's a device issue
+                        do_provision(device=args.params[0])
+                    elif testresult > 1:
+                        # Known error has occured, fail it
                         failed_job(server,job)
+                        # Email the user
+                        deal_with_results(job, results, testresult)
+                        wait_time = 1
+            else:
+                # Checks failed
+                wait_time = 1
+                if checkresult == 1:
+                # If we get some unknown error, retry up to N times by unclaiming
+                    if job["metadata"]["failures"] > 5:
+                        # We have unclaimed this 5 times, it's failed
+                        failed_job(server,job)
+                        deal_with_results(job, results, checkresult)
                     else:
-                        print "Job failed: unclaiming job, then waiting %s seconds and trying again" % wait_time
-                        unclaim_job(server, job)
+                        # Unclaim it and try again
+                        unclaim_job(server,job)
+                # However if we got a return code of a known error, we fail out
+                # and email the user
+                elif checkresult > 1:
+                    failed_job(server,job)
+                    deal_with_results(job, results, checkresult)
         except KeyboardInterrupt:
             break
         except:
