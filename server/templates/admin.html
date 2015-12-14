@@ -3,16 +3,16 @@
 {% block head %}
     {{ super() }}
     <style type="text/css">
-    ul {
+    #content ul {
         margin: 0;
         padding: 0;
     }
-    dt { clear: left; }
-    ul, dd {
+    #content dt { clear: left; }
+    #content ul, dd {
         padding: 0.5em;
         overflow: auto;
     }
-    li {
+    #content li {
         list-style: none;
         display: block;
         float: left;
@@ -20,19 +20,19 @@
         padding: 0;
         border: 1px solid #ccc;
     }
-    li em, li strong {
+    #content li em, li strong {
         padding: 0.3em;
         display: block;
         float: left;
     }
-    dl::after {
+    #content dl::after {
         content: "x";
         clear: both;
         font-size: 0;
     }
-    li strong.pending { background: yellow; }
-    li strong.claimed { background: orange; }
-    li strong.finished { background: green; }
+    #content li strong.pending { background: yellow; }
+    #content li strong.claimed { background: orange; }
+    #content li strong.finished { background: green; }
     </style>
 {% endblock %}
 {% block content %}
