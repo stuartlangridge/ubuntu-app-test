@@ -249,9 +249,42 @@ def claim():
                             "job": fol,
                             "click": url_for("click", uid=fol),
                             "finished": url_for("finished", uid=fol, device_code=device_code),
-                            "metadata": metadata
+                            "metadata": metadata,
+                            "unclaim": url_for("unclaim", uid=fol, device_code=device_code, claim_secret=claim_secret)
                         }), 200, {'Content-Type': 'application/json'}
     return json.dumps({"job": None}), 200, {'Content-Type': 'application/json'}
+
+@app.route("/unclaim/<uid>/<device_code>")
+def unclaim(uid, device_code):
+    device_printable = [x["printable"] for x in get_known_devices() if x["code"] == device_code]
+    if not device_printable:
+        return json.dumps({"error": "Bad device code"}), 400, {'Content-Type': 'application/json'}
+    device = device_printable[0]
+    if not uid:
+        return json.dumps({"error": "No job specified"}), 400, {'Content-Type': 'application/json'}
+    if not re.match("^[0-9]{14}-[A-Z0-9]{10}$", uid):
+        return json.dumps({"error": "Invalid job ID"}), 400, {'Content-Type': 'application/json'}
+    if request.args.get("claim_secret") != claim_secret:
+        return json.dumps({"error": "Bad claim secret"}), 400, {'Content-Type': 'application/json'}
+
+    ometa = os.path.join(app.config["UPLOAD_FOLDER"], uid, "metadata.json")
+    if not os.path.exists(ometa):
+        return json.dumps({"error": "No such job"}), 400, {'Content-Type': 'application/json'}
+
+    fp = codecs.open(ometa, encoding="utf8")
+    metadata = json.load(fp)
+    fp.close()
+    device_status = metadata.get("devices", [])
+    for ds in device_status:
+        if ds["printable"] == device:
+            if ds["status"] == "claimed":
+                ds["status"] = "pending"
+                metadata["devices"] = device_status
+                fp = codecs.open(ometa, mode="w", encoding="utf8")
+                json.dump(metadata, fp)
+                fp.close()
+                return json.dumps({"unclaimed": True}), 200, {'Content-Type': 'application/json'}
+    return json.dumps({"unclaimed": False, "error": "Not your job to unclaim"}), 200, {'Content-Type': 'application/json'}
 
 @app.route("/click/<uid>")
 def click(uid):
