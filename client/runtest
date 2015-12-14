@@ -18,7 +18,6 @@ SERVERHOST="http://marvin.popey.com"
 
 function dedupe {
   # This needs to be more robust. Images rarely pass this.
-  # Passed two images, if the same, second one is deleted
   diff $1 $2
   if [ "?$" == "0" ]
   then
@@ -66,6 +65,7 @@ function screen_grab {
   SILLYFILE=`/usr/bin/adb -s $DEVICEID shell ls -1 /tmp/mir_screencast*|tr -d '\r'`
   adb -s $DEVICEID pull "$SILLYFILE" $RESULTSDIR/screenshot.rgba
   convert -depth 8 -size $SIZE $RESULTSDIR/screenshot.rgba $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-$1.png
+  exiftool -all= -overwrite_original $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-$1.png
   rm $RESULTSDIR/screenshot.rgba
 }
 
@@ -171,9 +171,6 @@ else
     done
     # stop app
     adb -s $DEVICEID shell "ubuntu-app-stop $LAUNCH"
-    # De-duplicate screenshot 2 and 3 (as they may be the same) to save space
-    # and email bandwidth
-    dedupe $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-$2.png $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-$3.png
     # Get logs
     get_logs
     # Remove any click packages remaining (clean up after our app)
@@ -208,5 +205,9 @@ fi # [ "$?" != "0" ]; then (push)
 # Delete any empty files (i.e. logs) so we don't email zero size files
 find $RESULTSDIR -size  0 -print0 |xargs -0 rm
 rm -rf $TMPDIR
+
+# De-duplicate screenshot 2 and 3 (as they may be the same) to save space
+# and email bandwidth
+dedupe $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-$1.png $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-$2.png
 
 echo $(date +%Y-%m-%d-%H%M%S) "Runtest exit normally"
