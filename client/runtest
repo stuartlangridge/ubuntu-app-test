@@ -18,9 +18,11 @@ SERVERHOST="http://marvin.popey.com"
 
 function dedupe {
   # This needs to be more robust. Images rarely pass this.
+  echo $(date +%Y-%m-%d-%H%M%S) "Comparing $1 and $2"
   diff $1 $2
-  if [ "?$" == "0" ]
+  if [ "$?" == "0" ]
   then
+    echo $(date +%Y-%m-%d-%H%M%S) "Same, deleting $2"
     rm $2
   fi
 }
@@ -107,6 +109,7 @@ timeout 600 adb -s $DEVICEID wait-for-device
 # Send the click package to the device
 echo $(date +%Y-%m-%d-%H%M%S) Pushing $FILE to $TARGET
 adb -s $DEVICEID push $FILE $TARGET
+APPTYPE="unknown"
 if [ "$?" != "0" ]; then
     echo $(date +%Y-%m-%d-%H%M%S) Push failed
     echo "There was a problem pushing $FILE to $DEVICE_TYPE on $HOSTNAME at $(date +%Y-%m-%d-%H%M%S). Please try again later." >> $RESULTSDIR/errors.txt
@@ -125,80 +128,89 @@ else
   DESKTOP=$($GETDESKTOP)
   # Check if the .desktop file has an Exec line, if not, it's probably a scope and we can't run it
   EXECLINE=$(adb -s $DEVICEID shell grep ^Exec $DESKTOP | tr -d '\n')
+  # Suppress powerd
+  adb -s $DEVICEID shell sudo stop powerd
+  # Turn the display screen on
+  adb -s $DEVICEID shell powerd-cli display on &
+  # Prevent the screen from locking
+  adb -s $DEVICEID shell gsettings set com.ubuntu.touch.system activity-timeout 0
+  # Unlock the screen
+  adb -s $DEVICEID shell gdbus call --session --dest com.canonical.UnityGreeter --object-path / --method com.canonical.UnityGreeter.HideGreeter
+  # Refresh app scope
+  adb -s $DEVICEID shell dbus-send /com/canonical/unity/scopes com.canonical.unity.scopes.InvalidateResults string:clickscope
+  pause 1
+  # Trim desktop filename
+  LAUNCH=$(basename $DESKTOP | sed 's/.desktop//')
+  # shut off the network
+  adb -s $DEVICEID shell nmcli n off
+  # Screenshot the app scope (should be on screen by default) so the dev sees their icon/text
+  screen_grab 0
   if [ "$EXECLINE" == "" ]; then
     # Exec line not found, this is probably a scope
-    echo "Exec line not found in desktop file. This is probably a scope not an app, and currently cannot be tested." | tee -a $RESULTSDIR/click-review.txt
-    exit 3
+    #echo "Exec line not found in desktop file. This is probably a scope not an app, and currently cannot be tested." | tee -a $RESULTSDIR/click-review.txt
+    #exit 3
+    echo $(date +%Y-%m-%d-%H%M%S) Launching a scope $LAUNCH
+    adb -s $DEVICEID shell "dbus-send --print-reply --dest=com.canonical.URLDispatcher /com/canonical/URLDispatcher com.canonical.URLDispatcher.DispatchURL string:'scope://$LAUNCH' string:''"
+    APPTYPE="scope" 2>&1 | tee -a $RESULTSDIR/$LAUNCH-$DEVICE_TYPE-launch.txt
   else
-    # We did find an Exec line, so chances are this is an app we can test!
-    # Suppress powerd
-    adb -s $DEVICEID shell sudo stop powerd
-    # Turn the display screen on
-    adb -s $DEVICEID shell powerd-cli display on &
-    # Prevent the screen from locking
-    adb -s $DEVICEID shell gsettings set com.ubuntu.touch.system activity-timeout 0
-    # Unlock the screen
-    adb -s $DEVICEID shell gdbus call --session --dest com.canonical.UnityGreeter --object-path / --method com.canonical.UnityGreeter.HideGreeter
-    # Refresh app scope
-    adb -s $DEVICEID shell dbus-send /com/canonical/unity/scopes com.canonical.unity.scopes.InvalidateResults string:clickscope
-    pause 1
-    # Trim desktop filename
-    LAUNCH=$(basename $DESKTOP | sed 's/.desktop//')
-    # shut off the network
-    adb -s $DEVICEID shell nmcli n off
-    # Screenshot the app scope (should be on screen by default) so the dev sees their icon/text
-    screen_grab 0
+    # We did find an Exec line, so chances are this is an app (not scope)
     adb -s $DEVICEID shell "ubuntu-app-launch $LAUNCH" 2>&1 | tee -a $RESULTSDIR/$LAUNCH-$DEVICE_TYPE-launch.txt
-    # Get three more screenshots
-    for counter in 1 2 3
-    do
-      # Check if app is still running, if so, grab a screenshot
-      adb -s $DEVICEID shell "ubuntu-app-list | grep $LAUNCH"
-      if [ "$?" == "0" ]
-      then
-        # Unnecessary
-        #echo $(date +%Y-%m-%d-%H%M%S) "Application running, taking screenshot" | tee -a >> $RESULTSDIR/launch.txt
-        screen_grab $counter
-      else
-        # If the app is no longer running, it probably died, no point taking
-        # a screenshot at this point
-        echo $(date +%Y-%m-%d-%H%M%S) "Application no longer running, probably died" | tee -a >> $RESULTSDIR/launch.txt
-      fi
-      if [ "$counter" -lt "3" ]
-      then
-        pause 5
-      fi
-    done
-    # stop app
-    adb -s $DEVICEID shell "ubuntu-app-stop $LAUNCH"
-    # Get logs
-    get_logs
-    # Remove any click packages remaining (clean up after our app)
-    adb -s $DEVICEID shell click list |  cut -f1 -d"	" | while read line
-    do
-      REMOVECLICK="adb -s $DEVICEID shell sudo click unregister $line"
-      echo "$REMOVECLICK"
-      $REMOVECLICK
-    done
-    # Refresh app scope
-    adb -s $DEVICEID shell dbus-send /com/canonical/unity/scopes com.canonical.unity.scopes.InvalidateResults string:clickscope
-
-    # Clean up app data and logs created by the app
-    # FIXME: These directory names aren't quite right
-    # adb -s $DEVICEID rm -rf $TARGET/.config/$LAUNCH*
-    # adb -s $DEVICEID rm -rf $TARGET/.cache/QML/Apps/$LAUNCH*
-    adb -s $DEVICEID shell rm $TARGET/.cache/upstart/application-click-$LAUNCH.log
-
-    # Restore state of device so display goes off between tests (if there's time)
-    # Turn on screen time out of 1 min
-    adb -s $DEVICEID shell gsettings set com.ubuntu.touch.system activity-timeout 60
-    # Find the powerd-cli process we started from above
-    POWERDPID=$(adb shell pidof powerd-cli | tr -d '\r')
-    # Kill it (there's probably a better way)
-    adb -s $DEVICEID shell kill $POWERDPID
-    # Restart power daemon
-    adb -s $DEVICEID shell sudo start powerd
+    APPTYPE="app"
   fi # [ "$EXECLINE" == "" ]; then
+  # Get three more screenshots
+  for counter in 1 2 3
+  do
+    # Check if app is still running, if so, grab a screenshot
+    if [ "$APPTYPE" == "app" ]
+    then
+      adb -s $DEVICEID shell "ubuntu-app-list | grep $LAUNCH"
+    else
+      echo "Scope, so this is just to ensure a 0 rc"
+    fi
+    if [ "$?" == "0" ]
+    then
+      # Unnecessary
+      #echo $(date +%Y-%m-%d-%H%M%S) "Application running, taking screenshot" | tee -a >> $RESULTSDIR/launch.txt
+      screen_grab $counter
+    else
+      # If the app is no longer running, it probably died, no point taking
+      # a screenshot at this point
+      echo $(date +%Y-%m-%d-%H%M%S) "Application no longer running, probably died" | tee -a >> $RESULTSDIR/launch.txt
+    fi
+    if [ "$counter" -lt "3" ]
+    then
+      pause 5
+    fi
+  done
+  # stop app
+  adb -s $DEVICEID shell "ubuntu-app-stop $LAUNCH"
+  # Get logs
+  get_logs
+  # Remove any click packages remaining (clean up after our app)
+  adb -s $DEVICEID shell click list |  cut -f1 -d"	" | while read line
+  do
+    REMOVECLICK="adb -s $DEVICEID shell sudo click unregister $line"
+    echo "$REMOVECLICK"
+    $REMOVECLICK
+  done
+  # Refresh app scope
+  adb -s $DEVICEID shell dbus-send /com/canonical/unity/scopes com.canonical.unity.scopes.InvalidateResults string:clickscope
+
+  # Clean up app data and logs created by the app
+  # FIXME: These directory names aren't quite right
+  # adb -s $DEVICEID rm -rf $TARGET/.config/$LAUNCH*
+  # adb -s $DEVICEID rm -rf $TARGET/.cache/QML/Apps/$LAUNCH*
+  adb -s $DEVICEID shell rm $TARGET/.cache/upstart/application-click-$LAUNCH.log
+
+  # Restore state of device so display goes off between tests (if there's time)
+  # Turn on screen time out of 1 min
+  adb -s $DEVICEID shell gsettings set com.ubuntu.touch.system activity-timeout 60
+  # Find the powerd-cli process we started from above
+  POWERDPID=$(adb shell pidof powerd-cli | tr -d '\r')
+  # Kill it (there's probably a better way)
+  adb -s $DEVICEID shell kill $POWERDPID
+  # Restart power daemon
+  adb -s $DEVICEID shell sudo start powerd
   # Delete the click file we pushed to the device
   adb -s $DEVICEID shell rm $TARGET/*.click
 fi # [ "$?" != "0" ]; then (push)
@@ -208,6 +220,8 @@ rm -rf $TMPDIR
 
 # De-duplicate screenshot 2 and 3 (as they may be the same) to save space
 # and email bandwidth
-dedupe $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-$1.png $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-$2.png
+dedupe $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-2.png $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-3.png
+dedupe $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-1.png $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-2.png
+dedupe $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-0.png $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-1.png
 
 echo $(date +%Y-%m-%d-%H%M%S) "Runtest exit normally"
