@@ -1,5 +1,5 @@
 import os, datetime, codecs, random, string, json, re, time, sqlite3, shutil
-from flask import Flask, render_template, request, url_for, abort, redirect, send_from_directory, g, Response
+from flask import Flask, render_template, request, url_for, abort, redirect, send_from_directory, g, Response, escape
 from werkzeug import secure_filename
 from functools import wraps
 
@@ -147,10 +147,12 @@ def admin():
                 dt = os.stat(ometa).st_ctime
             else:
                 dt = os.stat(click).st_ctime
+            dt = metadata["time"]
+            metadata["filename"] = re.sub("_([0-9]+\.[0-9]_)", r" \1", metadata["filename"])
             queue.append({"uid": fol, "metadata": metadata, "cleanupable": cleanupable,
                 "dt": dt,
-                "dta": time.asctime(time.gmtime(dt))})
-    queue.sort(cmp=lambda a,b:cmp(a["dt"], b["dt"]))
+                "dta": time.strftime("%H.%M&nbsp;%Y/%m/%d", time.gmtime(dt))})
+    queue.sort(cmp=lambda a,b:cmp(b["dt"], a["dt"]))
     return render_template("admin.html", devices=get_known_devices(),
         queue=queue, is_paused=is_paused)
 

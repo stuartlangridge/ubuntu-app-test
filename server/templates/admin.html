@@ -7,53 +7,100 @@
         margin: 0;
         padding: 0;
     }
-    #content dt { clear: left; }
-    #content ul, dd {
-        padding: 0.5em;
-        overflow: auto;
-    }
     #content li {
         list-style: none;
-        display: block;
-        float: left;
         margin: 0;
-        padding: 0;
-        border: 1px solid #ccc;
-    }
-    #content li em, li strong {
         padding: 0.3em;
+    }
+    #content li.pending { background: #ff8; }
+    #content li.claimed { background: #fa4; }
+    #content li.finished { background: #8f8; }
+    #content li.failed { background: #f88; }
+
+    table {
+        border-collapse: collapse;
+    }
+    td { padding: 0.2em 0.5em; }
+
+    table.hidecleanup tr.cleanupable { display: none; }
+    td.filename { font-size: 60%; }
+    td.cleanupable { text-align: center; font-size: 200%; }
+    
+    table.sortable th:not(.sorttable_sorted):not(.sorttable_sorted_reverse):not(.sorttable_nosort):after { 
+        content: " \25B4\25BE" 
+    }
+    td {
+        border-bottom: 1px solid #eee;
+    }
+    time {
         display: block;
-        float: left;
+        font-style: italic;
+        font-size: 80%;
     }
-    #content dl::after {
-        content: "x";
-        clear: both;
-        font-size: 0;
-    }
-    #content li strong.pending { background: yellow; }
-    #content li strong.claimed { background: orange; }
-    #content li strong.finished { background: green; }
-    #content li strong.failed { background: red; }
     </style>
+    <script src="/static/sorttable.js"></script>
 {% endblock %}
 {% block content %}
 <h1>The queue</h1>
 <form action="/togglepause" method="POST">
     <input type="submit" value="{% if is_paused %}Unpause the server{% else %}Pause the server{% endif %}">
 </form>
-<dl>
+<p><button id="togglecompleted" onclick="document.querySelector('table.sortable').classList.toggle('hidecleanup')">Show/hide completed items</button></p>
+<table class="sortable hidecleanup">
+    <thead><tr>
+        <th>Uploaded</th><th>Click filename</th><th>Uploader</th>
+        <th class="sorttable_nosort">Results</th><th class="sorttable_nosort">Ready for cleanup?</th>
+    </tr></thead>
+    <tbody>
 {% for item in queue %}
-    <dt><em>{{item.metadata.email}}</em> uploaded <a href="/click/{{item.uid}}">{{item.metadata.filename}}</a> at {{item.dta}}</dt>
-    <dd>
-        <ul>
-            {% for device in item.metadata.devices %}
-            <li><em>{{device.printable}}</em> <strong class="{{device.status}}">{{device.status}}</strong></li>
-            {% endfor %}
-        </ul>
-        {% if item.cleanupable %}
-        (will be cleaned up in next cleanup iteration)
-        {% endif %}
-    </dd>
+    <tr class="{% if item.cleanupable %}cleanupable{% endif %}">
+        <td sorttable_customkey="{{item.dt}}">{{item.dta|safe}} <time data-timestamp="{{item.dt}}"></time></td>
+        <td class="filename"><a href="/click/{{item.uid}}">{{item.metadata.filename}}</a></td>
+        <td>{{item.metadata.email}}</td>
+        <td>
+            <ul>
+                {% for device in item.metadata.devices %}
+                <li class="{{device.status}}" title="{{device.status}}">{{device.printable}}</li>
+                {% endfor %}
+            </ul>
+        </td>
+        <td class="cleanupable {% if item.cleanupable %}yes{% else %}no{% endif %}">
+        {% if item.cleanupable %}✓{% else %}❌{% endif %}
+        </td>
+    </tr>
 {% endfor %}
-</dl>
+</table>
+<script>
+function tick() {
+    var now = (new Date()).getTime() / 1000;
+    Array.prototype.slice.call(document.querySelectorAll("time")).forEach(function(time) {
+        var diff = now - parseInt(time.getAttribute("data-timestamp"), 10);
+        var s = "Some time ago";
+        if (diff < 60) {
+            s = "Just now!";
+        } else if (diff < 60 * 2) {
+            s = "A minute ago";
+        } else if (diff < 60 * 5) {
+            s = "A few minutes ago";
+        } else if (diff < 60 * 50) {
+            s = Math.round(diff / 60) + " minutes ago";
+        } else if (diff < 60 * 80) {
+            s = "An hour ago";
+        } else if (diff < 60 * 60 * 18) {
+            s = Math.round(diff / 60 / 60) + " hours ago";
+        } else if (diff < 60 * 60 * 28) {
+            s = "A day ago";
+        } else if (diff < 60 * 60 * 24 * 6) {
+            s = Math.round(diff / 60 / 60 / 24) + " days ago";
+        } else {
+            s = Math.round(diff / 60 / 60 / 7) + " weeks ago";
+        }
+        time.innerHTML = s;
+        var aging = Math.min(diff, 60*60*24*7) / (60*60*24*7);
+        time.parentNode.parentNode.style.backgroundColor = "rgba(248,236,194," + aging + ")";
+    });
+}
+setInterval(tick, 30000);
+tick();
+</script>
 {% endblock %}
