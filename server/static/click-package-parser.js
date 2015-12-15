@@ -14,6 +14,8 @@
             console.log(data); // {"policy_groups": ["networking"], "policy_version": 1.2}
         });
     });
+
+    By Stuart Langridge, http://www.kryogenix.org/, December 2015. MIT licenced.
 */
 function ArFile(file) {
     var self = this;

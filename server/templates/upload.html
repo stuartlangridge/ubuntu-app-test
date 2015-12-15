@@ -47,6 +47,19 @@ function examine(input, file) {
             } catch(e) {
                 console.error(e); return;
             }
+            var arch = manifest.architecture || "unspecified";
+            if (!Array.isArray(arch)) arch = [arch];
+            var okarches = ["armhf", "all", "multi"];
+            var hasAtLeastOneOKArch = false;
+            arch.forEach(function(a) {
+                if (okarches.indexOf(a) !== -1) hasAtLeastOneOKArch = true;
+            });
+
+            if (!hasAtLeastOneOKArch) {
+                alert("Sorry, Marvin cannot be used to test packages with architecture: " + manifest.architecture);
+                input.value = "";
+                return;
+            }
             if (manifest.hooks) {
                 for (var k in manifest.hooks) {
                     if (manifest.hooks[k].apparmor) {
@@ -67,6 +80,7 @@ function examine(input, file) {
                     if (apparmor.template && apparmor.template === "ubuntu-webapp") {
                         alert("Sorry, Marvin can't be used to usefully test webapps.");
                         input.value = "";
+                        return;
                     }
                 });
             }
