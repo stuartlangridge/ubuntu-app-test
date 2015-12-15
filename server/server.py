@@ -148,7 +148,7 @@ def admin():
             else:
                 dt = os.stat(click).st_ctime
             dt = metadata["time"]
-            metadata["filename"] = re.sub("_([0-9]+\.[0-9]_)", r" \1", metadata["filename"])
+            metadata["filename"] = re.sub("_([0-9]+\.[0-9])", r" \1", metadata["filename"]).replace("com.ubuntu.developer.", "c.u.d.")
             queue.append({"uid": fol, "metadata": metadata, "cleanupable": cleanupable,
                 "dt": dt,
                 "dta": time.strftime("%H.%M&nbsp;%Y/%m/%d", time.gmtime(dt))})
