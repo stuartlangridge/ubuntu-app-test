@@ -109,19 +109,25 @@ def deal_with_results(job, results, checkresult):
     # runchecks:-
     # rc2 = Click package contains errors, please see log
     # rc6 = Click package couldn't be pushed to device
+    # rc7 = Click package couldn't be installed
+    # rc8 = Click review aborted
     supplementaltext = ""
     if checkresult == 1:
         supplementaltext = "There was some unknown problem when testing the package. Sorry."
     elif checkresult == 2:
-        supplementaltext = "Click package failed the click-review tools checks. Please see attached click-review.txt log for details."
+        supplementaltext = "Click package failed the click-review tools checks. See attached click-review.txt log for details."
     elif checkresult == 3:
-        supplementaltext = "There was a problem unpacking the control archive in the click package. Your click package seems corrupted."
+        supplementaltext = "There was a problem unpacking the control archive in the click package. The click package seems corrupted."
     elif checkresult == 4:
-        supplementaltext = "There was a problem unpacking the data archive in the click package. Your click package seems corrupted."
+        supplementaltext = "There was a problem unpacking the data archive in the click package. The click package seems corrupted."
     elif checkresult == 5:
-        supplementaltext = "Webapps are currently not supported by this tool."
+        supplementaltext = "Webapps are currently not supported, due to the lack of network access on the devices."
     elif checkresult == 6:
-        supplementaltext = "\r\nThere was a problem pushing your click package to the device for testing."
+        supplementaltext = "There was a problem pushing the click package to the device for testing."
+    elif checkresult == 7:
+        supplementaltext = "There was a problem installing the click package on the device."
+    elif checkresult == 8:
+        supplementaltext = "There was a problem running the click-review tool aainst the click package. Testing cannot continue."
     upload_files = [os.path.join(results["resultsdir"], x) for x in os.listdir(results["resultsdir"])]
     upload_files = [x for x in upload_files if os.path.isfile(x)]
     print job["metadata"]["email"]

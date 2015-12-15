@@ -5,6 +5,8 @@
 # e.g. ./runtest /click/20151126103906-PLBRWIBL9X 0050aba613958223 mako portait /tmp/foo
 # rc2 = Click package contains errors, please see log
 # rc6 = Click package couldn't be pushed to device
+# rc7 = Click package couldn't be installed
+# rc8 = Click review aborted
 
 CLICK_URL=$1
 DEVICEID=$2
@@ -98,137 +100,150 @@ FILE=$(ls $TMPDIR/*.click)
 FILENAME=$(basename $FILE)
 DESKTOPFILE=$(echo $FILENAME | tr '-' '_')
 
-click-review $FILE | tee -a $RESULTSDIR/click-review.txt
-# Workaround until bug http://pad.lv/1523255 is fixed
-CONTAINS_ERRORS=$(grep ^Errors $RESULTSDIR/click-review.txt)
-CONTAINS_WARNINGS=$(grep ^Warnings $RESULTSDIR/click-review.txt)
-
-if [ -n "${CONTAINS_ERRORS}" ]; then
-  echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE failed, errors found"
-  exit 2
-fi
-if [ -n "${CONTAINS_WARNINGS}" ]; then
-  echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE generated warnings, running anyway"
-fi
-# Check for device before we do this. It fails a lot.
-echo $(date +%Y-%m-%d-%H%M%S) Waiting for $DEVICEID before sending $FILE to $TARGET
-timeout 600 adb -s $DEVICEID wait-for-device
-# Send the click package to the device
-echo $(date +%Y-%m-%d-%H%M%S) Pushing $FILE to $TARGET
-adb -s $DEVICEID push $FILE $TARGET
-APPTYPE="unknown"
-if [ "$?" != "0" ]; then
-    echo $(date +%Y-%m-%d-%H%M%S) Push failed
-    echo "There was a problem pushing $FILE to $DEVICE_TYPE on $HOSTNAME at $(date +%Y-%m-%d-%H%M%S). Please try again later." >> $RESULTSDIR/errors.txt
-    # attempt basic remedial measure of rebooting device
-    adb -s $DEVICEID reboot
-    exit 6
+click-review $FILE 2>&1 | tee -a $RESULTSDIR/click-review.txt
+if [ "${PIPESTATUS[0]}" != "0" ]; then
+  echo $(date +%Y-%m-%d-%H%M%S) "Click review failed to run"
+  exit 8
 else
-  #clean out .desktop files from device so there's only one from our app (ugh)
-  # FIXME: derive the desktop file name or some other way but this works :S
-  # This shouldn't be needed anymore as we delete the click apps during provisioning
-  adb -s $DEVICEID shell rm /home/phablet/.local/share/applications/*.desktop
-  echo $(date +%Y-%m-%d-%H%M%S) Installing $FILENAME
-  adb -s $DEVICEID shell pkcon -p -y -v install-local --allow-untrusted $TARGET/$FILENAME | perl -pe 's/\x1b\[[0-9;]*[mG]//g' | tee -a $RESULTSDIR/install.txt
-  # Get desktop file name
-  GETDESKTOP="adb -s $DEVICEID shell ls -tr $TARGET/.local/share/applications/*.desktop | tail -n 1 | tr -d '\r' | tr -d '\n'"
-  DESKTOP=$($GETDESKTOP)
-  # Check if the .desktop file has an Exec line, if not, it's probably a scope and we can't run it
-  EXECLINE=$(adb -s $DEVICEID shell grep ^Exec $DESKTOP | tr -d '\n')
-  # Suppress powerd
-  adb -s $DEVICEID shell sudo stop powerd
-  # Turn the display screen on
-  adb -s $DEVICEID shell powerd-cli display on &
-  # Prevent the screen from locking
-  adb -s $DEVICEID shell gsettings set com.ubuntu.touch.system activity-timeout 0
-  # Unlock the screen
-  adb -s $DEVICEID shell gdbus call --session --dest com.canonical.UnityGreeter --object-path / --method com.canonical.UnityGreeter.HideGreeter
-  # Refresh app scope
-  adb -s $DEVICEID shell dbus-send /com/canonical/unity/scopes com.canonical.unity.scopes.InvalidateResults string:clickscope
-  pause 1
-  # Trim desktop filename
-  LAUNCH=$(basename $DESKTOP | sed 's/.desktop//')
-  # shut off the network
-  adb -s $DEVICEID shell nmcli n off
-  # Screenshot the app scope (should be on screen by default) so the dev sees their icon/text
-  screen_grab 0
-  if [ "$EXECLINE" == "" ]; then
-    # Add a delay of 5 seconds after install before launching scopes as
-    # the app scope refreshes and we capture that in screenshots
-    pause 5
-    echo $(date +%Y-%m-%d-%H%M%S) Launching a scope $LAUNCH
-    adb -s $DEVICEID shell "dbus-send --print-reply --dest=com.canonical.URLDispatcher /com/canonical/URLDispatcher com.canonical.URLDispatcher.DispatchURL string:'scope://$LAUNCH' string:''"
-    APPTYPE="scope" 2>&1 | tee -a $RESULTSDIR/$LAUNCH-$DEVICE_TYPE-launch.txt
-    # Add delay after starting
-    pause 2
-  else
-    # We did find an Exec line, so chances are this is an app (not scope)
-    adb -s $DEVICEID shell "ubuntu-app-launch $LAUNCH" 2>&1 | tee -a $RESULTSDIR/$LAUNCH-$DEVICE_TYPE-launch.txt
-    APPTYPE="app"
-  fi # [ "$EXECLINE" == "" ]; then
-  # Get three more screenshots
-  for counter in 1 2 3
-  do
-    # Check if app is still running, if so, grab a screenshot
-    if [ "$APPTYPE" == "app" ]
-    then
-      adb -s $DEVICEID shell "ubuntu-app-list | grep $LAUNCH"
-    else
-      echo "Scope, so this is just to ensure a 0 rc"
-    fi
-    if [ "$?" == "0" ]
-    then
-      # Unnecessary
-      #echo $(date +%Y-%m-%d-%H%M%S) "Application running, taking screenshot" | tee -a >> $RESULTSDIR/launch.txt
-      screen_grab $counter
-    else
-      # If the app is no longer running, it probably died, no point taking
-      # a screenshot at this point
-      echo $(date +%Y-%m-%d-%H%M%S) "Application no longer running, probably died" | tee -a >> $RESULTSDIR/launch.txt
-    fi
-    if [ "$counter" -lt "3" ]
-    then
-      pause 5
-    fi
-  done
-  # stop app
-  if [ "$APPTYPE" == "app" ]
-  then
-    # Stop the app
-    adb -s $DEVICEID shell "ubuntu-app-stop $LAUNCH"
-  else
-    # Switch away from scope
-    adb -s $DEVICEID shell "dbus-send --print-reply --dest=com.canonical.URLDispatcher /com/canonical/URLDispatcher com.canonical.URLDispatcher.DispatchURL string:'scope://com.canonical.scopes.click' string:''"
+  # Workaround until bug http://pad.lv/1523255 is fixed
+  CONTAINS_ERRORS=$(grep ^Errors $RESULTSDIR/click-review.txt)
+  CONTAINS_WARNINGS=$(grep ^Warnings $RESULTSDIR/click-review.txt)
+
+  if [ -n "${CONTAINS_ERRORS}" ]; then
+    echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE failed, errors found"
+    exit 2
   fi
-  # Get logs
-  get_logs
-  # Remove any click packages remaining (clean up after our app)
-  adb -s $DEVICEID shell click list |  cut -f1 -d"	" | while read line
-  do
-    REMOVECLICK="adb -s $DEVICEID shell sudo click unregister $line"
-    echo "$REMOVECLICK"
-    $REMOVECLICK
-  done
-  # Refresh app scope
-  adb -s $DEVICEID shell dbus-send /com/canonical/unity/scopes com.canonical.unity.scopes.InvalidateResults string:clickscope
+  if [ -n "${CONTAINS_WARNINGS}" ]; then
+    echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE generated warnings, running anyway"
+  fi
+  # Check for device before we do this. It fails a lot.
+  echo $(date +%Y-%m-%d-%H%M%S) Waiting for $DEVICEID before sending $FILE to $TARGET
+  timeout 600 adb -s $DEVICEID wait-for-device
+  # We later determine if APPTYPE is scope or app (or other maybe later)
+  APPTYPE="unknown"
+  # Send the click package to the device
+  echo $(date +%Y-%m-%d-%H%M%S) Pushing $FILE to $TARGET
+  adb -s $DEVICEID push $FILE $TARGET
+  if [ "$?" != "0" ]; then
+      echo $(date +%Y-%m-%d-%H%M%S) "Push $FILE failed"
+      echo "There was a problem pushing $FILE to $DEVICE_TYPE on $HOSTNAME at $(date +%Y-%m-%d-%H%M%S). Please try again later." >> $RESULTSDIR/errors.txt
+      # attempt basic remedial measure of rebooting device
+      adb -s $DEVICEID reboot
+      exit 6
+  else
+    #clean out .desktop files from device so there's only one from our app (ugh)
+    # FIXME: derive the desktop file name or some other way but this works :S
+    # This shouldn't be needed anymore as we delete the click apps during provisioning
+    adb -s $DEVICEID shell rm /home/phablet/.local/share/applications/*.desktop
+    echo $(date +%Y-%m-%d-%H%M%S) "Installing $FILENAME"
+    adb -s $DEVICEID shell pkcon -p -y -v install-local --allow-untrusted $TARGET/$FILENAME | perl -pe 's/\x1b\[[0-9;]*[mG]//g' | tee -a $RESULTSDIR/install.txt
+    grep "failed to install" $RESULTSDIR/install.txt
+    if [ "$?" == "0" ]; then
+      # Package failed to install for some reason (wrong arch, missing framework?)
+      echo $(date +%Y-%m-%d-%H%M%S) "$FILENAME failed to install"
+      exit 7
+    else
+      # Get desktop file name
+      GETDESKTOP="adb -s $DEVICEID shell ls -tr $TARGET/.local/share/applications/*.desktop | tail -n 1 | tr -d '\r' | tr -d '\n'"
+      DESKTOP=$($GETDESKTOP)
+      # Check if the .desktop file has an Exec line, if not, it's probably a scope and we can't run it
+      EXECLINE=$(adb -s $DEVICEID shell grep ^Exec $DESKTOP | tr -d '\n')
+      # Suppress powerd
+      adb -s $DEVICEID shell sudo stop powerd
+      # Turn the display screen on
+      adb -s $DEVICEID shell powerd-cli display on &
+      # Prevent the screen from locking
+      adb -s $DEVICEID shell gsettings set com.ubuntu.touch.system activity-timeout 0
+      # Unlock the screen
+      adb -s $DEVICEID shell gdbus call --session --dest com.canonical.UnityGreeter --object-path / --method com.canonical.UnityGreeter.HideGreeter
+      # Refresh app scope
+      adb -s $DEVICEID shell dbus-send /com/canonical/unity/scopes com.canonical.unity.scopes.InvalidateResults string:clickscope
+      pause 1
+      # Trim desktop filename
+      LAUNCH=$(basename $DESKTOP | sed 's/.desktop//')
+      # shut off the network
+      adb -s $DEVICEID shell nmcli n off
+      # Screenshot the app scope (should be on screen by default) so the dev sees their icon/text
+      screen_grab 0
+      if [ "$EXECLINE" == "" ]; then
+        # Add a delay of 5 seconds after install before launching scopes as
+        # the app scope refreshes and we capture that in screenshots
+        pause 5
+        echo $(date +%Y-%m-%d-%H%M%S) Launching a scope $LAUNCH
+        adb -s $DEVICEID shell "dbus-send --print-reply --dest=com.canonical.URLDispatcher /com/canonical/URLDispatcher com.canonical.URLDispatcher.DispatchURL string:'scope://$LAUNCH' string:''"
+        APPTYPE="scope" 2>&1 | tee -a $RESULTSDIR/$LAUNCH-$DEVICE_TYPE-launch.txt
+        # Add delay after starting
+        pause 2
+      else
+        # We did find an Exec line, so chances are this is an app (not scope)
+        adb -s $DEVICEID shell "ubuntu-app-launch $LAUNCH" 2>&1 | tee -a $RESULTSDIR/$LAUNCH-$DEVICE_TYPE-launch.txt
+        APPTYPE="app"
+      fi # [ "$EXECLINE" == "" ]; then
+      # Get three more screenshots
+      for counter in 1 2 3
+      do
+        # Check if app is still running, if so, grab a screenshot
+        if [ "$APPTYPE" == "app" ]
+        then
+          adb -s $DEVICEID shell "ubuntu-app-list | grep $LAUNCH"
+        else
+          echo "Scope, so this is just to ensure a 0 rc"
+        fi
+        if [ "$?" == "0" ]
+        then
+          # Unnecessary
+          #echo $(date +%Y-%m-%d-%H%M%S) "Application running, taking screenshot" | tee -a >> $RESULTSDIR/launch.txt
+          screen_grab $counter
+        else
+          # If the app is no longer running, it probably died, no point taking
+          # a screenshot at this point
+          echo $(date +%Y-%m-%d-%H%M%S) "Application no longer running, probably died" | tee -a >> $RESULTSDIR/launch.txt
+        fi
+        if [ "$counter" -lt "3" ]
+        then
+          pause 5
+        fi
+      done
+      # stop app
+      if [ "$APPTYPE" == "app" ]
+      then
+        # Stop the app
+        adb -s $DEVICEID shell "ubuntu-app-stop $LAUNCH"
+      else
+        # Switch away from scope
+        adb -s $DEVICEID shell "dbus-send --print-reply --dest=com.canonical.URLDispatcher /com/canonical/URLDispatcher com.canonical.URLDispatcher.DispatchURL string:'scope://com.canonical.scopes.click' string:''"
+      fi
+      # Get logs
+      get_logs
+      # Remove any click packages remaining (clean up after our app)
+      adb -s $DEVICEID shell click list |  cut -f1 -d"	" | while read line
+      do
+        REMOVECLICK="adb -s $DEVICEID shell sudo click unregister $line"
+        echo "$REMOVECLICK"
+        $REMOVECLICK
+      done
+      # Refresh app scope
+      adb -s $DEVICEID shell dbus-send /com/canonical/unity/scopes com.canonical.unity.scopes.InvalidateResults string:clickscope
 
-  # Clean up app data and logs created by the app
-  # FIXME: These directory names aren't quite right
-  # adb -s $DEVICEID rm -rf $TARGET/.config/$LAUNCH*
-  # adb -s $DEVICEID rm -rf $TARGET/.cache/QML/Apps/$LAUNCH*
-  adb -s $DEVICEID shell rm $TARGET/.cache/upstart/application-click-$LAUNCH.log
+      # Clean up app data and logs created by the app
+      # FIXME: These directory names aren't quite right
+      # adb -s $DEVICEID rm -rf $TARGET/.config/$LAUNCH*
+      # adb -s $DEVICEID rm -rf $TARGET/.cache/QML/Apps/$LAUNCH*
+      adb -s $DEVICEID shell rm $TARGET/.cache/upstart/application-click-$LAUNCH.log
 
-  # Restore state of device so display goes off between tests (if there's time)
-  # Turn on screen time out of 1 min
-  adb -s $DEVICEID shell gsettings set com.ubuntu.touch.system activity-timeout 60
-  # Find the powerd-cli process we started from above
-  POWERDPID=$(adb -s $DEVICEID shell pidof powerd-cli | tr -d '\r')
-  # Kill it (there's probably a better way)
-  adb -s $DEVICEID shell kill $POWERDPID
-  # Restart power daemon
-  adb -s $DEVICEID shell sudo start powerd
-  # Delete the click file we pushed to the device
-  adb -s $DEVICEID shell rm $TARGET/*.click
+      # Restore state of device so display goes off between tests (if there's time)
+      # Turn on screen time out of 1 min
+      adb -s $DEVICEID shell gsettings set com.ubuntu.touch.system activity-timeout 60
+      # Find the powerd-cli process we started from above
+      POWERDPID=$(adb -s $DEVICEID shell pidof powerd-cli | tr -d '\r')
+      # Kill it (there's probably a better way)
+      adb -s $DEVICEID shell kill $POWERDPID
+      # Restart power daemon
+      adb -s $DEVICEID shell sudo start powerd
+    fi # [ "$?" != "0" ]; then (pkcon install)
+    # Delete the click file we pushed to the device
+    adb -s $DEVICEID shell rm $TARGET/*.click
+  fi  # [ "$?" != "0" ]; then (click review)
 fi # [ "$?" != "0" ]; then (push)
 # Delete any empty files (i.e. logs) so we don't email zero size files
 find $RESULTSDIR -size  0 -print0 |xargs -0 rm
