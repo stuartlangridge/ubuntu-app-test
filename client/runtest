@@ -66,7 +66,13 @@ function screen_grab {
   # FIXME: Need to put some smarts around this as it sometimes wedges the phone
   # try not suspending unity8 to see if that helps
   echo $(date +%Y-%m-%d-%H%M%S) "Grabbing screenshot"
-  adb -s $DEVICEID shell mirscreencast -m /var/run/mir_socket  -n1
+  adb -s $DEVICEID shell mirscreencast -m /var/run/mir_socket -n1 2>&1 | tee -a $RESULTSDIR/screenshots.txt
+  SCREENSHOTSTATUS=$(grep ^Failed $RESULTSDIR/screenshots.txt)
+  # If we failed to take a screenshot for some unknown reason
+  if [ -n "${SCREENSHOTSTATUS}" ]; then
+    echo $(date +%Y-%m-%d-%H%M%S) "Taking screenshot failed of $FILE failed, errors found"
+    exit 1
+  fi
 #  adb -s $DEVICEID shell "kill -SIGCONT \$(pidof unity8)"
   SILLYFILE=`/usr/bin/adb -s $DEVICEID shell ls -1 /tmp/mir_screencast*|tr -d '\r'`
   if [ "$ORIENTATION" == "landscape" ]; then
@@ -101,21 +107,30 @@ FILENAME=$(basename $FILE)
 DESKTOPFILE=$(echo $FILENAME | tr '-' '_')
 
 click-review $FILE 2>&1 | tee -a $RESULTSDIR/click-review.txt
-if [ "${PIPESTATUS[0]}" != "0" ]; then
+REVIEWSTATUS=${PIPESTATUS[0]}
+
+# Workaround until bug http://pad.lv/1523255 is fixed
+CONTAINS_ERRORS=$(grep ^Errors $RESULTSDIR/click-review.txt)
+CONTAINS_WARNINGS=$(grep ^Warnings $RESULTSDIR/click-review.txt)
+
+# If errors in the click-review output
+if [ -n "${CONTAINS_ERRORS}" ]; then
+  echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE failed, errors found"
+  exit 2
+fi
+
+# If warnings were issued, we continue
+if [ -n "${CONTAINS_WARNINGS}" ]; then
+  echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE generated warnings, running anyway"
+fi
+
+# If click-review exited abnormally, but there's no warnings then as we already
+# exit 2 on error, this must be an abort, so we exit 8
+if [ "$REVIEWSTATUS" != "0" ] && [ -z "${CONTAINS_WARNINGS}" ]; then
   echo $(date +%Y-%m-%d-%H%M%S) "Click review failed to run"
   exit 8
 else
-  # Workaround until bug http://pad.lv/1523255 is fixed
-  CONTAINS_ERRORS=$(grep ^Errors $RESULTSDIR/click-review.txt)
-  CONTAINS_WARNINGS=$(grep ^Warnings $RESULTSDIR/click-review.txt)
-
-  if [ -n "${CONTAINS_ERRORS}" ]; then
-    echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE failed, errors found"
-    exit 2
-  fi
-  if [ -n "${CONTAINS_WARNINGS}" ]; then
-    echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE generated warnings, running anyway"
-  fi
+  # Either we exited click-review okay, or we just have warnins.
   # Check for device before we do this. It fails a lot.
   echo $(date +%Y-%m-%d-%H%M%S) Waiting for $DEVICEID before sending $FILE to $TARGET
   timeout 600 adb -s $DEVICEID wait-for-device
@@ -172,8 +187,9 @@ else
         echo $(date +%Y-%m-%d-%H%M%S) Launching a scope $LAUNCH
         adb -s $DEVICEID shell "dbus-send --print-reply --dest=com.canonical.URLDispatcher /com/canonical/URLDispatcher com.canonical.URLDispatcher.DispatchURL string:'scope://$LAUNCH' string:''"
         APPTYPE="scope" 2>&1 | tee -a $RESULTSDIR/$LAUNCH-$DEVICE_TYPE-launch.txt
-        # Add delay after starting
-        pause 2
+        # Add delay after starting otherwise we get a bouncer on screen which
+        # makes it hard to diff screenshots if not all have same bouncer
+        pause 5
       else
         # We did find an Exec line, so chances are this is an app (not scope)
         adb -s $DEVICEID shell "ubuntu-app-launch $LAUNCH" 2>&1 | tee -a $RESULTSDIR/$LAUNCH-$DEVICE_TYPE-launch.txt
