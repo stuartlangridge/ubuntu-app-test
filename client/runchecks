@@ -35,7 +35,7 @@ DESKTOPFILE=$(echo $FILENAME | tr '-' '_')
 
 click-review $FILE | tee -a $CHECKSDIR/click-review.txt
 # Workaround until bug http://pad.lv/1523255 is fixed
-CONTAINS_ERRORS=$(grep ^Errors $CHECKSDIR/click-review.txt)
+CONTAINS_ERRORS=$(grep -i ^Error $CHECKSDIR/click-review.txt)
 CONTAINS_WARNINGS=$(grep ^Warnings $CHECKSDIR/click-review.txt)
 
 if [ -n "${CONTAINS_ERRORS}" ]; then
