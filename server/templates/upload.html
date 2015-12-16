@@ -30,22 +30,34 @@
 <script src="/static/gunzip.min.js"></script>
 <script src="/static/click-package-parser.js"></script>
 <script>
+function seemsInvalid(input) {
+    alert("That does not seem like a correct click package, sorry. If you're sure it is, please contact us.");
+    input.value = "";
+}
 function examine(input, file) {
     var click;
     try {
         click = new ClickFile(file);
     } catch(e) {
+        seemsInvalid(input);
         console.error(e); return;
     }
     click.onload = function(err) {
-        if (err) { console.error(err); return; }
+        if (err) {
+            seemsInvalid(input);
+            console.error(err); return;
+        }
         // get the manifest
         click.getFile("control.tar.gz", "./manifest", function(err, data) {
-            if (err) { console.error(err); return; }
+            if (err) {
+                seemsInvalid(input);
+                console.error(err); return;
+            }
             var aa = [], manifest;
             try {
                 manifest = JSON.parse(String.fromCharCode.apply(null, data));
             } catch(e) {
+                seemsInvalid(input);
                 console.error(e); return;
             }
             var arch = manifest.architecture || "unspecified";
@@ -76,6 +88,7 @@ function examine(input, file) {
                     try {
                         apparmor = JSON.parse(String.fromCharCode.apply(null, data));
                     } catch(e) {
+                        seemsInvalid(input);
                         console.error(e); return;
                     }
                     if (apparmor.template && apparmor.template === "ubuntu-webapp") {
@@ -86,7 +99,7 @@ function examine(input, file) {
                 });
             }
         });
-    }
+    };
 }
 
 document.getElementsByName("click")[0].onchange = function(e) {
