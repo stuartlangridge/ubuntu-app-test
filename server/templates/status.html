@@ -1,10 +1,21 @@
 {% extends "base.html" %}
 {% block title %}Upload{% endblock %}
+{% block head %}
+    {{ super() }}
+    <style type="text/css">
+    #content li strong { padding: 0.3em; border: 1px solid #efefef; }
+    #content li strong.pending { background: #ff8; }
+    #content li strong.claimed { background: #fa4; }
+    #content li strong.finished { background: #8f8; }
+    #content li strong.failed { background: #f88; }
+    </style>
+{% endblock %}
 {% block content %}
+{% set descriptions = {"pending": "Your package is waiting for a device to be free to test it", "claimed": "Your package is being tested by the device", "finished": "Your package has been tested and you should receive an email log of the test", "failed": "Your package failed to test correctly; see the email to work out why"} %}
 <h1>Status of your test</h1>
 <ul>
 {% for item in metadata.devices %}
-    <li>{{ item.printable|e }}: {{ item.status|e }}</li>
+    <li>{{ item.printable|e }}: <strong class="{{ item.status|e }}">{{ item.status|e }}</strong><br><br><em>{{ descriptions.get(item.status, "") }}</li>
 {% endfor %}
 </ul>
 <script>
