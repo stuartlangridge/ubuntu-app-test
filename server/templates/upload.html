@@ -18,7 +18,7 @@
             <li>...no test devices are currently online. Please try again later...</li>
         {% else %}
             {% for device in devices %}
-                <li><label>{{ device.printable|e }} <input type="checkbox" name="device_{{ device.code|e }}"></label></li>
+                <li><label><input type="checkbox" name="device_{{ device.code|e }}"> {{ device.printable|e }}</label></li>
             {% endfor %}
             {% if not devices %}
                 <li>...no test devices are currently online. Please try again later...</li>
