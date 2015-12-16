@@ -4,10 +4,11 @@
 {{ super() }}
 <style type="text/css">
     .important { color: #336699; }
+    h1 { font-size: 180%; margin: 1.5em 0; }
 </style>
 {% endblock %}
 {% block content %}
-<h1>Upload your click</h1>
+<h1>Test Ubuntu click packages on devices you don't have.<br>Upload your app below.</h1>
 <form action="upload" method="POST" enctype="multipart/form-data">
     <p><input type="file" name="click"></p>
     <p><label>Email: <input type="email" name="email"></label></p>
