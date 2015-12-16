@@ -11,7 +11,7 @@ The other parameters are passed to the do_test() function, which uses them to kn
 """
 
 import argparse, traceback, sys, urllib, urlparse, time, json, subprocess, tempfile, signal
-import smtplib, json, codecs, datetime
+import smtplib, json, codecs, datetime, traceback
 import os
 from os.path import basename
 from email.mime.application import MIMEApplication
@@ -24,6 +24,27 @@ from scripts import provision
 fp = open("claim_secret") # this needs to exist. Put a long random string in it.
 claim_secret = fp.read()
 fp.close()
+
+def sendWorkerErrorEmail(type, value, tb):
+    errtext = "".join(traceback.format_exception(type, value, tb))
+    try:
+        fp = codecs.open("creds.json") # has username, name, password keys
+        creds = json.load(fp)
+        fp.close()
+        send_email(
+            from_address=creds["username"],
+            from_name=creds.get("name"),
+            from_password=creds["password"],
+            to_addresses=["alan@popey.com"],
+            subject="Marvin worker untrapped failure",
+            text_body=errtext
+        )
+    except:
+        print "Couldn't send worker error email. This was the error:"
+        print errtext
+        # and then we die.
+
+sys.excepthook = sendWorkerErrorEmail
 
 ############################################################################################
 # Parts that need implementing
@@ -255,6 +276,7 @@ def check_forever(server, device, test_params):
         except:
             print "Error when running a worker: waiting %s seconds and trying again" % wait_time
             traceback.print_exc(file=sys.stdout)
+            sendWorkerErrorEmail(*sys.exc_info())
             time.sleep(wait_time)
             wait_time = wait_time * 1.4
             if wait_time > 250: wait_time = 250
