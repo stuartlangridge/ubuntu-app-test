@@ -38,7 +38,7 @@ def sendWorkerErrorEmail(type, value, tb):
             to_addresses=["alan@popey.com"],
             subject="Marvin worker untrapped failure",
             text_body=errtext,
-            html_body="<html><body>%s" % errtext
+            html_body="<html><body><pre>%s" % errtext
         )
     except Exception as e:
         print "Couldn't send worker error email. This was the error:"
