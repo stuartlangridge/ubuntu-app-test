@@ -172,21 +172,30 @@ def deal_with_results(job, results, checkresult):
 # Parts that can be left alone
 ############################################################################################
 
+def add_claim_secret(url):
+    parts = list(urlparse.urlparse(url))
+    qs = urlparse.parse_qsl(parts[4])
+    qs.append(("claim_secret", claim_secret))
+    parts[4] = urllib.urlencode(qs)
+    return urlparse.urlunparse(parts)
 
 def release_job(server, job):
-    fp = urllib.urlopen(urlparse.urljoin(server, job["finished"]))
+    url = add_claim_secret(job["finished"])
+    fp = urllib.urlopen(urlparse.urljoin(server, url))
     data = json.load(fp)
     fp.close()
     return data
 
 def unclaim_job(server, job):
-    fp = urllib.urlopen(urlparse.urljoin(server, job["unclaim"]))
+    url = add_claim_secret(job["unclaim"])
+    fp = urllib.urlopen(urlparse.urljoin(server, url))
     data = json.load(fp)
     fp.close()
     return data
 
 def failed_job(server, job):
-    fp = urllib.urlopen(urlparse.urljoin(server, job["failed"]))
+    url = add_claim_secret(job["failed"])
+    fp = urllib.urlopen(urlparse.urljoin(server, url))
     data = json.load(fp)
     fp.close()
     return data

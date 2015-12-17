@@ -4,7 +4,7 @@ from werkzeug import secure_filename
 from functools import wraps
 
 fp = open("claim_secret") # this needs to exist. Put a long random string in it.
-claim_secret = fp.read()
+claim_secrets = [x.strip() for x in fp.readlines()]
 fp.close()
 
 ####################### config
@@ -89,7 +89,7 @@ def check_auth(username, password):
     """This function is called to check if a username /
     password combination is valid.
     """
-    return username == 'admin' and password == claim_secret.strip()
+    return username == 'admin' and password in claim_secrets
 
 def authenticate():
     """Sends a 401 response that enables basic auth"""
@@ -276,7 +276,7 @@ def claim():
     device = request.args.get('device')
     if not device:
         return json.dumps({"error": "No device specified"}), 400, {'Content-Type': 'application/json'}
-    if request.args.get("claim_secret") != claim_secret:
+    if request.args.get("claim_secret").strip() not in claim_secrets:
         return json.dumps({"error": "Bad claim secret"}), 400, {'Content-Type': 'application/json'}
 
     is_paused = os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], "PAUSED"))
@@ -310,7 +310,7 @@ def claim():
                             "finished": url_for("finished", uid=fol, device_code=device_code),
                             "failed": url_for("failed", uid=fol, device_code=device_code),
                             "metadata": metadata,
-                            "unclaim": url_for("unclaim", uid=fol, device_code=device_code, claim_secret=claim_secret)
+                            "unclaim": url_for("unclaim", uid=fol, device_code=device_code)
                         }), 200, {'Content-Type': 'application/json'}
     return json.dumps({"job": None}), 200, {'Content-Type': 'application/json'}
 
@@ -324,7 +324,7 @@ def unclaim(uid, device_code):
         return json.dumps({"error": "No job specified"}), 400, {'Content-Type': 'application/json'}
     if not re.match("^[0-9]{14}-[A-Z0-9]{10}$", uid):
         return json.dumps({"error": "Invalid job ID"}), 400, {'Content-Type': 'application/json'}
-    if request.args.get("claim_secret") != claim_secret:
+    if request.args.get("claim_secret").strip() not in claim_secrets:
         return json.dumps({"error": "Bad claim secret"}), 400, {'Content-Type': 'application/json'}
 
     ometa = os.path.join(app.config["UPLOAD_FOLDER"], uid, "metadata.json")
@@ -364,6 +364,8 @@ def click(uid):
     return send_from_directory(folder, metadata["filename"], as_attachment=True)
 
 def completed(uid, device_code, resolution):
+    if request.args.get("claim_secret").strip() not in claim_secrets:
+        return json.dumps({"error": "Bad claim secret"}), 400, {'Content-Type': 'application/json'}
     device_printable = [x["printable"] for x in get_known_devices() if x["code"] == device_code]
     if not device_printable:
         return json.dumps({"error": "Bad device code"}), 400, {'Content-Type': 'application/json'}

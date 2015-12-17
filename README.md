@@ -12,4 +12,4 @@ The clients are client/worker.py, and you connect multiple devices to a computer
 
 ## The claim secret
 
-Both server and client look for a file called `claim_secret`. This file is not in the repository; it should contain a long random string, and there must be a copy of it in the server folder on the server, and a copy of the same file in the client folder on the client. It's there so random people can't pretend to be the client and spam the server with new device names.
+Both server and client look for a file called `claim_secret`. This file is not in the repository; on the client it should contain one long random string, and on the server it should contain many long random strings, each of which matches one client random string. So you can allocate a new claim secret to a new worker, and revoke it later if required. It's there so random people can't pretend to be the client and spam the server with new device names.
