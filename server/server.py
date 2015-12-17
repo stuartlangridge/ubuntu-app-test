@@ -188,7 +188,7 @@ def upload():
             "failures": 0
         }
         for device in get_known_devices():
-            if request.form.get("device_%s" % device["code"]) == "on":
+            if request.form.get("device_%s" % device["code"]) == "on" or request.form.get("device___all") == "on":
                 metadata["devices"].append({
                     "printable": device["printable"],
                     "status": "pending"
