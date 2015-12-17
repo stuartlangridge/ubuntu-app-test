@@ -153,8 +153,37 @@ def admin():
                 "dt": dt,
                 "dta": time.strftime("%H.%M&nbsp;%Y/%m/%d", time.gmtime(dt))})
     queue.sort(cmp=lambda a,b:cmp(b["dt"], a["dt"]))
-    return render_template("admin.html", devices=get_known_devices(),
-        queue=queue, is_paused=is_paused)
+    return render_template("admin.html", queue=queue, is_paused=is_paused)
+
+@app.route("/setstatus", methods=["POST"])
+@requires_auth
+def setstatus():
+    uid = request.form.get("uid")
+    device = request.form.get("device")
+    status = request.form.get("status")
+    if not uid or not device or not status:
+        return "Bad call (%s)" % request.form, 400
+    if status not in ["pending", "failed"]:
+        return "Can't set status to that", 400
+    if not re.match("^[0-9]{14}-[A-Z0-9]{10}$", uid):
+        return "Invalid job ID", 400
+    ometa = os.path.join(app.config["UPLOAD_FOLDER"], uid, "metadata.json")
+    if not os.path.exists(ometa):
+        return "No such job", 400
+    fp = codecs.open(ometa, encoding="utf8")
+    metadata = fp.read()
+    fp.close()
+    metadata = json.loads(metadata)
+    device_status = metadata.get("devices", [])
+    for ds in device_status:
+        if ds["printable"] == device:
+            ds["status"] = status
+            metadata["devices"] = device_status
+            fp = codecs.open(ometa, mode="w", encoding="utf8")
+            json.dump(metadata, fp, indent=2)
+            fp.close()
+    return redirect(url_for("admin"))
+
 
 @app.route("/togglepause", methods=["POST"])
 @requires_auth

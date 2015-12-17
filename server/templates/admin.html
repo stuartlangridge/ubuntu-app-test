@@ -43,6 +43,14 @@
     #content li strong.claimed { background: orange; }
     #content li strong.finished { background: green; }
     #content li strong.failed { background: red; }
+    #content li form { display: inline; float: right; }
+    #content li { overflow: auto; }
+    #content li input[type="submit"] {
+        background: rgba(255,255,255,0.4);
+        border-width: 0;
+        color: black;
+        border-radius: 4px;
+    }
     </style>
     <script src="/static/sorttable.js"></script>
 {% endblock %}
@@ -66,7 +74,16 @@
         <td>
             <ul>
                 {% for device in item.metadata.devices %}
-                <li class="{{device.status}}" title="{{device.status}}">{{device.printable}}</li>
+                <li class="{{device.status}}" title="{{device.status}}">{{device.printable}}
+                {% if device.status == "claimed" %}
+                    <form method="POST" action="{{ url_for('setstatus') }}">
+                    <input type="hidden" name="uid" value="{{item.uid}}">
+                    <input type="hidden" name="status" value="pending">
+                    <input type="hidden" name="device" value="{{device.printable}}">
+                    <input type="submit" value="&#x2672;" title="Set to pending">
+                    </form>
+                {% endif %}
+                </li>
                 {% endfor %}
             </ul>
         </td>
