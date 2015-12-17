@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, url_for, abort, redirect, sen
 from werkzeug import secure_filename
 from functools import wraps
 import email.parser, smtplib
+from validate_email import validate_email
 
 fp = open("claim_secret") # this needs to exist. Put a long random string in it.
 claim_secrets = [x.strip() for x in fp.readlines()]
@@ -207,6 +208,8 @@ def upload():
     is_paused = os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], "PAUSED"))
     if is_paused:
         return render_template("user_error.html", message="Uploads are not available at the moment")
+    if not validate_email(request.form.get("email")):
+        return render_template("user_error.html", message="That doesn't seem to be a valid email address.")
     file = request.files["click"]
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)

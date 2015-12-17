@@ -7,6 +7,7 @@
     pip install Flask
     pip install supervisor
     pip install uwsgi
+    pip install validate_email
 
 ## running the server
 
