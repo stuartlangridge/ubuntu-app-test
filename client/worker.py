@@ -157,14 +157,26 @@ def deal_with_results(job, results, checkresult):
     fp = codecs.open("creds.json", encoding="utf8") # has username, name, password keys
     creds = json.load(fp)
     fp.close()
+    email_params = {
+        "filename": job["metadata"]["filename"],
+        "submitted": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(job["metadata"]["time"])),
+        "supplemental": supplementaltext,
+        "runidString": (" (test run '%s')" % job["metadata"]["runid"]) if job["metadata"].get("runid") else ""
+    }
+    text_body = (
+        "Please find attached the results of Marvin running %(filename)s%(runidString)s, "
+        "submitted %(submitted)s: \r\n\r\n%(supplemental)s") % email_params
+    html_body = (
+        "<html><body>Please find attached the results of Marvin running %(filename)s%(runidString)s, "
+        "submitted %(submitted)s: \r\n\r\n%(supplemental)s") % email_params
     send_email(
         from_address=creds["username"],
         from_name=creds.get("name"),
         from_password=creds["password"],
         to_addresses=[job["metadata"]["email"]],
         subject=job["metadata"]["filename"] + " results from Marvin ",
-        text_body="Please find attached the results of Marvin running " + job["metadata"]["filename"] + " submitted " + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(job["metadata"]["time"])) + ": \r\n\r\n" + supplementaltext,
-        html_body="<html><body>Please find attached the results of Marvin running " + job["metadata"]["filename"] + " submitted " + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(job["metadata"]["time"])) + ": \r\n\r\n" + supplementaltext,
+        text_body=text_body,
+        html_body=html_body,
         attached_files=upload_files
     )
 

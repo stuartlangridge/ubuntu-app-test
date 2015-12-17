@@ -215,7 +215,8 @@ def upload():
             "filename": filename,
             "devices": [],
             "time": time.time(),
-            "failures": 0
+            "failures": 0,
+            "runid": request.form.get("runid", "")
         }
         for device in get_known_devices():
             if request.form.get("device_%s" % device["code"]) == "on" or request.form.get("device___all") == "on":
@@ -296,6 +297,7 @@ def claim():
             metadata = json.load(fp)
             fp.close()
             if "failures" not in metadata: metadata["failures"] = 0
+            if "runid" not in metadata: metadata["runid"] = ""
             device_status = metadata.get("devices", [])
             for ds in device_status:
                 if ds["printable"] == device:
