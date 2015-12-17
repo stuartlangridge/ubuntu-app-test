@@ -274,7 +274,11 @@ def status(uid):
     metadata = fp.read()
     fp.close()
     metadata = json.loads(metadata)
-    return render_template("status.html", metadata=metadata)
+    completed = True
+    for d in metadata.get("devices", []):
+        if d["status"] not in ["finished", "failed"]:
+            completed = False
+    return render_template("status.html", metadata=metadata, completed=completed)
 
 @app.route("/claim")
 def claim():

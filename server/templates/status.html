@@ -18,7 +18,9 @@
     <li>{{ item.printable|e }}: <strong class="{{ item.status|e }}">{{ item.status|e }}</strong><br><br><em>{{ descriptions.get(item.status, "") }}</li>
 {% endfor %}
 </ul>
+{% if not completed %}
 <script>
 setTimeout(function() { location.reload(true); }, 5000);
 </script>
+{% endif %}
 {% endblock %}
