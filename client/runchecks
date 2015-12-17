@@ -7,6 +7,7 @@
 # rc3 = problem unpacking control.tar.gz from click package
 # rc4 = problem unpacking data.tar.gz from click package
 # rc5 = webapps not currently supported
+# rc9 = problem unpacking click package
 
 CLICK_URL=$1
 DEVICEID=$2
@@ -18,7 +19,6 @@ TARGETUSER="phablet"
 TARGET="/home/$TARGETUSER"
 HERE=$(pwd)
 SERVERHOST="http://marvin.popey.com"
-
 
 echo $(date +%Y-%m-%d-%H%M%S) $CLICK_URL
 echo $(date +%Y-%m-%d-%H%M%S) $DEVICEID
@@ -39,20 +39,26 @@ CONTAINS_ERRORS=$(grep -i ^Error $CHECKSDIR/click-review.txt)
 CONTAINS_WARNINGS=$(grep ^Warnings $CHECKSDIR/click-review.txt)
 
 if [ -n "${CONTAINS_ERRORS}" ]; then
-  echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE failed, errors found"
+  echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE failed, errors found" | tee -a $CHECKSDIR/check-errors.txt
   exit 2
 fi
 if [ -n "${CONTAINS_WARNINGS}" ]; then
-  echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE generated warnings, running anyway"
+  echo $(date +%Y-%m-%d-%H%M%S) "Click review of $FILE generated warnings, running anyway" | tee -a $CHECKSDIR/check-errors.txt
 fi
 
 # Unpack & get data out of the click
 cd $TMPDIR
 ar -x $FILENAME
+if [ "$?" != "0" ];
+then
+  echo $(date +%Y-%m-%d-%H%M%S) "Problem unpacking click package $FILENAME" | tee -a $CHECKSDIR/check-errors.txt
+  exit 9
+fi
+
 tar xf control.tar.*
 if [ "$?" != "0" ];
 then
-  echo "Problem unpacking control.tar.* from $FILENAME"
+  echo $(date +%Y-%m-%d-%H%M%S) "Problem unpacking control.tar.* from $FILENAME" | tee -a $CHECKSDIR/check-errors.txt
   exit 3
 fi
 #APP_ID=$(jq -r '.name' < ./manifest)
@@ -64,7 +70,7 @@ APPARMORFILES=$(jq '.hooks | .. | .apparmor ' < ./manifest | grep \" | sed 's/ /
 tar xf data.tar.*
 if [ "$?" != "0" ];
 then
-  echo "Problem unpacking data.tar.* from $FILENAME"
+  echo $(date +%Y-%m-%d-%H%M%S) "Problem unpacking data.tar.* from $FILENAME" | tee -a $CHECKSDIR/check-errors.txt
   exit 4
 fi
 # Might be multiple APPARMORFILES
@@ -80,7 +86,7 @@ do
       TEMPLATE="none"
     fi
   else
-    echo "File $a does not exist."
+    echo $(date +%Y-%m-%d-%H%M%S) "File $a does not exist."
     BROKEN=$(mktemp)
     echo $TMPDIR
     TEMPLATE="missing"
@@ -92,6 +98,6 @@ do
   #fi
 done
 if [[ "$TEMPLATES" =~ "ubuntu-webapp" ]]; then
-  echo "Webapps are currently not supported, due to the lack of network access on the devices." | tee -a $CHECKSDIR/check-errors.txt
+  echo $(date +%Y-%m-%d-%H%M%S) "Webapps are currently not supported, due to the lack of network access on the devices." | tee -a $CHECKSDIR/check-errors.txt
   exit 5
 fi

@@ -149,6 +149,8 @@ def deal_with_results(job, results, checkresult):
         supplementaltext = "There was a problem installing the click package on the device."
     elif checkresult == 8:
         supplementaltext = "There was a problem running the click-review tool aainst the click package. Testing cannot continue."
+    elif checkresult == 9:
+        supplementaltext = "There was a problem unpacking the click package provided. Testing cannot continue."
     upload_files = [os.path.join(results["resultsdir"], x) for x in os.listdir(results["resultsdir"])]
     upload_files = [x for x in upload_files if os.path.isfile(x)]
     print job["metadata"]["email"]
