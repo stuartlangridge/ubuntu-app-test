@@ -106,7 +106,7 @@ FILE=$(ls $TMPDIR/*.click)
 FILENAME=$(basename $FILE)
 DESKTOPFILE=$(echo $FILENAME | tr '-' '_')
 
-click-review $FILE > $CHECKSDIR/click-review.txt 2>&1
+click-review $FILE > $RESULTSDIR/click-review.txt 2>&1
 REVIEWSTATUS=${PIPESTATUS[0]}
 
 # Workaround until bug http://pad.lv/1523255 is fixed
