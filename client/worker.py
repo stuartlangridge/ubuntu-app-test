@@ -37,11 +37,13 @@ def sendWorkerErrorEmail(type, value, tb):
             from_password=creds["password"],
             to_addresses=["alan@popey.com"],
             subject="Marvin worker untrapped failure",
-            text_body=errtext
+            text_body=errtext,
+            html_body="<html><body>%s" % errtext
         )
-    except:
+    except Exception as e:
         print "Couldn't send worker error email. This was the error:"
         print errtext
+        print e
         # and then we die.
 
 sys.excepthook = sendWorkerErrorEmail

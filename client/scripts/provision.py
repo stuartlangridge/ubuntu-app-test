@@ -1,6 +1,6 @@
 # Provision a device
 
-import os, time, subprocess
+import os, time, subprocess, urllib
 from phabletutils.environment import detect_device
 
 # Definitions
@@ -111,7 +111,7 @@ def provision(device_id, network_file=os.path.expanduser("~/.ubuntu-ci/wifi.conf
     wait_for_session_up(device_id)
     time.sleep(20)
     subprocess.call(["phablet-network", "-s", device_id, "-n", network_file])
-    
+
     log("DISABLE WELCOME WIZARD")
     subprocess.call(["phablet-config", "-s", device_id, "welcome-wizard", "--disable"])
 
