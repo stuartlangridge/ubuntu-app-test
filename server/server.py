@@ -2,6 +2,7 @@ import os, datetime, codecs, random, string, json, re, time, sqlite3, shutil
 from flask import Flask, render_template, request, url_for, abort, redirect, send_from_directory, g, Response, escape
 from werkzeug import secure_filename
 from functools import wraps
+import email.parser, smtplib
 
 fp = open("claim_secret") # this needs to exist. Put a long random string in it.
 claim_secrets = [x.strip() for x in fp.readlines()]
@@ -276,7 +277,7 @@ def claim():
     device = request.args.get('device')
     if not device:
         return json.dumps({"error": "No device specified"}), 400, {'Content-Type': 'application/json'}
-    if request.args.get("claim_secret").strip() not in claim_secrets:
+    if request.args.get("claim_secret", "").strip() not in claim_secrets:
         return json.dumps({"error": "Bad claim secret"}), 400, {'Content-Type': 'application/json'}
 
     is_paused = os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], "PAUSED"))
@@ -324,7 +325,7 @@ def unclaim(uid, device_code):
         return json.dumps({"error": "No job specified"}), 400, {'Content-Type': 'application/json'}
     if not re.match("^[0-9]{14}-[A-Z0-9]{10}$", uid):
         return json.dumps({"error": "Invalid job ID"}), 400, {'Content-Type': 'application/json'}
-    if request.args.get("claim_secret").strip() not in claim_secrets:
+    if request.args.get("claim_secret", "").strip() not in claim_secrets:
         return json.dumps({"error": "Bad claim secret"}), 400, {'Content-Type': 'application/json'}
 
     ometa = os.path.join(app.config["UPLOAD_FOLDER"], uid, "metadata.json")
@@ -364,7 +365,7 @@ def click(uid):
     return send_from_directory(folder, metadata["filename"], as_attachment=True)
 
 def completed(uid, device_code, resolution):
-    if request.args.get("claim_secret").strip() not in claim_secrets:
+    if request.args.get("claim_secret", "").strip() not in claim_secrets:
         return json.dumps({"error": "Bad claim secret"}), 400, {'Content-Type': 'application/json'}
     device_printable = [x["printable"] for x in get_known_devices() if x["code"] == device_code]
     if not device_printable:
@@ -399,6 +400,36 @@ def finished(uid, device_code):
 @app.route("/failed/<uid>/<device_code>")
 def failed(uid, device_code):
     return completed(uid, device_code, "failed")
+
+@app.route("/sendmail", methods=["POST"])
+def sendmail():
+    if request.args.get("claim_secret", "").strip() not in claim_secrets:
+        return json.dumps({"error": "Bad claim secret"}), 400, {'Content-Type': 'application/json'}
+    msg = request.form.get("message")
+    if not msg:
+        return json.dumps({"error": "No message"}), 400, {'Content-Type': 'application/json'}
+    p = email.parser.Parser()
+    try:
+        msg = p.parsestr(msg)
+    except:
+        raise
+        return json.dumps({"error": "Bad message"}), 400, {'Content-Type': 'application/json'}
+    if not msg.get("From") or not msg.get("To"):
+        return json.dumps({"error": "No addresses"}), 400, {'Content-Type': 'application/json'}
+
+    fp = codecs.open("creds.json", encoding="utf8") # has username, name, password keys
+    creds = json.load(fp)
+    fp.close()
+
+    try:
+        session = smtplib.SMTP('smtp.gmail.com', 587)
+        session.ehlo()
+        session.starttls()
+        session.login(creds["username"], creds["password"])
+        session.sendmail(creds["username"], msg["To"], msg.as_string())
+    except:
+        return json.dumps({"error": "email not sent"}), 500, {'Content-Type': 'application/json'}
+    return json.dumps({"success": "ok"}), 200, {'Content-Type': 'application/json'}
 
 @app.route("/cleanup")
 def cleanup():

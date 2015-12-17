@@ -28,7 +28,7 @@ fp.close()
 def sendWorkerErrorEmail(type, value, tb):
     errtext = "".join(traceback.format_exception(type, value, tb))
     try:
-        fp = codecs.open("creds.json") # has username, name, password keys
+        fp = codecs.open("creds.json", encoding="utf8") # has username, name, password keys
         creds = json.load(fp)
         fp.close()
         send_email(
@@ -154,7 +154,7 @@ def deal_with_results(job, results, checkresult):
     upload_files = [os.path.join(results["resultsdir"], x) for x in os.listdir(results["resultsdir"])]
     upload_files = [x for x in upload_files if os.path.isfile(x)]
     print job["metadata"]["email"]
-    fp = codecs.open("creds.json") # has username, name, password keys
+    fp = codecs.open("creds.json", encoding="utf8") # has username, name, password keys
     creds = json.load(fp)
     fp.close()
     send_email(
