@@ -24,7 +24,7 @@
     }
     td { padding: 0.2em 0.5em; }
 
-    table.hidecleanup tr.cleanupable { display: none; }
+    table.hidecleanup tr.cleanupable td { font-size: 0; height: 1px; background-color: #8f8; }
     td.filename { font-size: 60%; }
     td.cleanupable { text-align: center; font-size: 200%; }
     
@@ -59,7 +59,7 @@
 <form action="/togglepause" method="POST">
     <input type="submit" value="{% if is_paused %}Unpause the server{% else %}Pause the server{% endif %}">
 </form>
-<p><button id="togglecompleted" onclick="document.querySelector('table.sortable').classList.toggle('hidecleanup')">Show/hide completed items</button></p>
+<p><button id="togglecompleted" onclick="document.querySelector('table.sortable').classList.toggle('hidecleanup')">Show/hide {{ completed_count }} completed item{% if completed_count != 1 %}s{% endif %}</button></p>
 <table class="sortable hidecleanup">
     <thead><tr>
         <th>Uploaded</th><th>Click filename</th><th>Uploader</th>

@@ -154,7 +154,7 @@ def admin():
                 "dt": dt,
                 "dta": time.strftime("%H.%M&nbsp;%Y/%m/%d", time.gmtime(dt))})
     queue.sort(cmp=lambda a,b:cmp(b["dt"], a["dt"]))
-    return render_template("admin.html", queue=queue, is_paused=is_paused)
+    return render_template("admin.html", queue=queue, is_paused=is_paused, completed_count=len([x for x in queue if x["cleanupable"]]))
 
 @app.route("/setstatus", methods=["POST"])
 @requires_auth
