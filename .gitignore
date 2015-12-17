@@ -3,6 +3,7 @@ server/uploads/*
 server/venv
 server.pyc
 client/creds.json
+client/recovery/*
 
 requests.db
 *.pyc

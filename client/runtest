@@ -242,10 +242,19 @@ else
       adb -s $DEVICEID shell dbus-send /com/canonical/unity/scopes com.canonical.unity.scopes.InvalidateResults string:clickscope
 
       # Clean up app data and logs created by the app
-      # FIXME: These directory names aren't quite right
-      # adb -s $DEVICEID rm -rf $TARGET/.config/$LAUNCH*
-      # adb -s $DEVICEID rm -rf $TARGET/.cache/QML/Apps/$LAUNCH*
+      CONFDIR=$(echo $LAUNCH | awk -F '_' '{ print $1 }')
+      echo $(date +%Y-%m-%d-%H%M%S) "Deleting .local share dir"
+      adb -s $DEVICEID rm -rf $TARGET/.local/share/$CONFDIR*
+      echo $(date +%Y-%m-%d-%H%M%S) "Deleting .config dir"
+      adb -s $DEVICEID rm -rf $TARGET/.config/$CONFDIR*
+      echo $(date +%Y-%m-%d-%H%M%S) "Deleting QML Cache"
+      adb -s $DEVICEID rm -rf $TARGET/.cache/QML/Apps/$CONFDIR*
+      echo $(date +%Y-%m-%d-%H%M%S) "Deleting application log"
       adb -s $DEVICEID shell rm $TARGET/.cache/upstart/application-click-$LAUNCH.log
+      echo $(date +%Y-%m-%d-%H%M%S) "Clearing kernel ring buffer"
+      adb -s $DEVICEID sudo dmesg -C
+      echo $(date +%Y-%m-%d-%H%M%S) "Forcing logrotate"
+      adb -s $DEVICEID start logrotate
 
       # Restore state of device so display goes off between tests (if there's time)
       # Turn on screen time out of 1 min
