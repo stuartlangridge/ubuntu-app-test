@@ -5,10 +5,6 @@ from functools import wraps
 import email.parser, smtplib
 from validate_email import validate_email
 
-fp = open("claim_secret") # this needs to exist. Put a long random string in it.
-claim_secrets = [x.strip() for x in fp.readlines()]
-fp.close()
-
 ####################### config
 UPLOAD_FOLDER = os.path.abspath(os.path.join(os.path.split(__file__)[0], "uploads"))
 ALLOWED_EXTENSIONS = set(['click'])
@@ -17,48 +13,56 @@ ALLOWED_EXTENSIONS = set(['click'])
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['PROPAGATE_EXCEPTIONS'] = True
+app.config['DATABASE'] = os.path.join(os.path.split(__file__)[0], "requests.db")
 
-DATABASE = os.path.join(os.path.split(__file__)[0], "requests.db")
+fp = open("claim_secret") # this needs to exist. Put many long random strings in it, one per worker
+app.config["CLAIM_SECRETS"] = [x.strip() for x in fp.readlines()]
+fp.close()
 
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
-        db = g._database = sqlite3.connect(DATABASE)
-    return db, db.cursor()
+        db = g._database = sqlite3.connect(app.config['DATABASE'])
+        crs = db.cursor()
+        init_db(db, crs)
+    else:
+        crs = db.cursor()
+    return db, crs
 
-with app.app_context():
-    db, crs = get_db()
-    crs.execute(("create table if not exists requests ("
-        "id integer primary key, ip varchar, click_filename varchar, time TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
-        ")"))
-    crs.execute("create table if not exists devices (id integer primary key, printable_name varchar unique)")
-    crs.execute("create table if not exists request2device (deviceid integer, requestid integer)")
-    try:
-        crs.execute("alter table requests add column email varchar")
-    except sqlite3.OperationalError as e:
-        if "duplicate column name: email" in e.message:
-            pass
-        else:
-            raise e
-    try:
-        crs.execute("alter table devices add column code varchar")
-    except sqlite3.OperationalError as e:
-        if "duplicate column name: code" in e.message:
-            pass
-        else:
-            raise e
-    try:
-        crs.execute("alter table devices add column last_seen timestamp")
-    except sqlite3.OperationalError as e:
-        if "duplicate column name: last_seen" in e.message:
-            pass
-        else:
-            raise e
+def init_db(db, crs):
+    with app.app_context():
+        crs.execute(("create table if not exists requests ("
+            "id integer primary key, ip varchar, click_filename varchar, time TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+            ")"))
+        crs.execute("create table if not exists devices (id integer primary key, printable_name varchar unique)")
+        crs.execute("create table if not exists request2device (deviceid integer, requestid integer)")
+        try:
+            crs.execute("alter table requests add column email varchar")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name: email" in e.message:
+                pass
+            else:
+                raise e
+        try:
+            crs.execute("alter table devices add column code varchar")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name: code" in e.message:
+                pass
+            else:
+                raise e
+        try:
+            crs.execute("alter table devices add column last_seen timestamp")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name: last_seen" in e.message:
+                pass
+            else:
+                raise e
 
 ####################### utility functions
 def allowed_file(filename):
     return '.' in filename and \
-           filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
+        filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS and \
+        re.match(r"^[A-Za-z0-9.-]+_[a-zA-Z0-9.]+_[a-z0-9]+\.click$", filename)
 
 def randomstring(N):
     return ''.join(
@@ -91,7 +95,7 @@ def check_auth(username, password):
     """This function is called to check if a username /
     password combination is valid.
     """
-    return username == 'admin' and password in claim_secrets
+    return username == 'admin' and password in app.config["CLAIM_SECRETS"]
 
 def authenticate():
     """Sends a 401 response that enables basic auth"""
@@ -229,12 +233,13 @@ def upload():
                 })
         if not metadata["devices"]:
             return render_template("user_error.html", message="You have to specify at least one device.")
-        db, crs = get_db()
-        crs.execute("select count(*) from requests where time > datetime('now','-1 hour') and (ip = ? or email = ?)",
-            (request.remote_addr, metadata["email"]))
-        res = crs.fetchone()
-        if res and res[0] > 30:
-            return render_template("user_error.html", message="Overuse error: you have overrun the rate limit. Please wait an hour.")
+        if not app.config['TESTING']:
+            db, crs = get_db()
+            crs.execute("select count(*) from requests where time > datetime('now','-1 hour') and (ip = ? or email = ?)",
+                (request.remote_addr, metadata["email"]))
+            res = crs.fetchone()
+            if res and res[0] > 30:
+                return render_template("user_error.html", message="Overuse error: you have overrun the rate limit. Please wait an hour.")
 
         ndir = "%s-%s" % (datetime.datetime.now().strftime("%Y%m%d%H%M%S"), randomstring(10))
         ndirpath = os.path.join(app.config['UPLOAD_FOLDER'], ndir)
@@ -261,7 +266,7 @@ def upload():
         db.commit()
         return redirect(url_for('status', uid=ndir))
     else:
-        return render_template("user_error.html", message="That doesn't seem to be a legitimate click package."), 400
+        return render_template("user_error.html", message="That doesn't seem to be a legitimate click package name."), 400
 
 @app.route("/status/<uid>")
 def status(uid):
@@ -285,7 +290,7 @@ def claim():
     device = request.args.get('device')
     if not device:
         return json.dumps({"error": "No device specified"}), 400, {'Content-Type': 'application/json'}
-    if request.args.get("claim_secret", "").strip() not in claim_secrets:
+    if request.args.get("claim_secret", "").strip() not in app.config["CLAIM_SECRETS"]:
         return json.dumps({"error": "Bad claim secret"}), 400, {'Content-Type': 'application/json'}
 
     is_paused = os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], "PAUSED"))
@@ -334,7 +339,7 @@ def unclaim(uid, device_code):
         return json.dumps({"error": "No job specified"}), 400, {'Content-Type': 'application/json'}
     if not re.match("^[0-9]{14}-[A-Z0-9]{10}$", uid):
         return json.dumps({"error": "Invalid job ID"}), 400, {'Content-Type': 'application/json'}
-    if request.args.get("claim_secret", "").strip() not in claim_secrets:
+    if request.args.get("claim_secret", "").strip() not in app.config["CLAIM_SECRETS"]:
         return json.dumps({"error": "Bad claim secret"}), 400, {'Content-Type': 'application/json'}
 
     ometa = os.path.join(app.config["UPLOAD_FOLDER"], uid, "metadata.json")
@@ -374,7 +379,7 @@ def click(uid):
     return send_from_directory(folder, metadata["filename"], as_attachment=True)
 
 def completed(uid, device_code, resolution):
-    if request.args.get("claim_secret", "").strip() not in claim_secrets:
+    if request.args.get("claim_secret", "").strip() not in app.config["CLAIM_SECRETS"]:
         return json.dumps({"error": "Bad claim secret"}), 400, {'Content-Type': 'application/json'}
     device_printable = [x["printable"] for x in get_known_devices() if x["code"] == device_code]
     if not device_printable:
@@ -412,7 +417,7 @@ def failed(uid, device_code):
 
 @app.route("/sendmail", methods=["POST"])
 def sendmail():
-    if request.args.get("claim_secret", "").strip() not in claim_secrets:
+    if request.args.get("claim_secret", "").strip() not in app.config["CLAIM_SECRETS"]:
         return json.dumps({"error": "Bad claim secret"}), 400, {'Content-Type': 'application/json'}
     msg = request.form.get("message")
     if not msg:

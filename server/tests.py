@@ -1,0 +1,348 @@
+import os
+import unittest
+import tempfile
+import shutil
+from StringIO import StringIO
+import server
+
+ACCEPTABLE_CLICK_NAMES = ['com.ubuntu.developer.karthik.upadya1.wikipediatouch_0.1.3_all.click',
+                          'com.ubuntu.developer.1bsyl.breakout_1.01_armhf.click',
+                          'autoscout24de.ilonka_0.1_all.click',
+                          'afr.ausbuscon_0.1_all.click',
+                          'com.ubuntu.developer.daker.postrocktues_0.3_all.click',
+                          'com.ubuntu.developer.daker.demonition_0.2_all.click',
+                          'com.mikeasoft.webapp-librefm_1.0.0_all.click',
+                          'com.ubuntu.developer.christriant.cnotes_0.8.5_unknown.click',
+                          'analyticaltranslatordemo.xpheresdev_0.6_all.click',
+                          'autoscoutdewebapp.yusuf75_0.1_all.click',
+                          'com.cmdann.canadagoose_1.2_all.click',
+                          'clay.markcortbass_0.1_all.click',
+                          'com.ubuntu.developer.cwayne18.dictionary_1.0.9_armhf.click',
+                          'com.grooveshark.webapp_1.1_all.click',
+                          'anonymousitaliaunoff.andrea-il-lord_0.1_all.click',
+                          'com.ubuntu.developer.cwayne18.ubuntunews_0.1_armhf.click',
+                          'com.ubuntu.developer.abreu-alexandre.soundcloud_0.3.1_all.click',
+                          'com.popey.tripit_0.1_all.click',
+                          'lesjours.vinzjobard_0.1_all.click',
+                          'com.lastpass.lpubuntu_3.1.72_all.click',
+                          'com.ubuntu.developer.brianrobles204.karma-machine_0.751_armhf.click',
+                          'ahnl.markcortbass_0.1_all.click',
+                          'com.ubuntu.developer.karthik.upadya1.igplus_0.1.0_all.click',
+                          'com.ubuntu.developer.deepakkumardalai.amazon-india_0.3_all.click',
+                          'com.ubuntu.developer.gcollura.saucybacon_2.0.1_armhf.click',
+                          'com.ubuntu.developer.kpeignot.meteofrance_0.1_all.click',
+                          'com.ubuntu.developer.davidcalle.symbols_0.4_unknown.click',
+                          'com.ubuntu.developer.arnaudober.ubuntouch-fr_1.5_all.click',
+                          'animebam.corack117_0.1_all.click',
+                          'algebra-calculator.sofocles_0.2_all.click',
+                          'com.ubuntu.developer.ken-vandine.wordswarm_0.0.8_all.click',
+                          'com.ubuntu.developer.benbugohit.webapp-societegenerale_0.1_all.click',
+                          'com.ubuntu.developer.deepakkumardalai.irctc_0.1_all.click',
+                          'com.canonical.scopes.olacab_0.0.3_armhf.click',
+                          'com.canonical.scopes.photos_4.0.0_armhf.click',
+                          'ansait.otragan_0.1_all.click',
+                          'com.ubuntu.developer.djain29.unit-converter_0.1.3_all.click',
+                          'com.ubuntu.developer.joshua-strobl.linkedin_1.2_all.click',
+                          'argazkiapp.ekintech_1.1_all.click',
+                          'com.ubuntu.developer.dpdmancul.osmerarpafvg_1.0.3_all.click',
+                          'com.ubuntu.developer.ken-vandine.pathwind_0.2.9_armhf.click',
+                          'agelostitisschsite.agtitis_0.1_all.click',
+                          'com.canonical.scopes.chinanews_3.8_armhf.click',
+                          'com.ubuntu.developer.karthik.upadya1.ifacebook_0.1.0_all.click',
+                          'com.ubuntu.developer.hughisaacs2.acrylicstyle_0.3_all.click',
+                          'com.ubuntu.developer.erlinfin.mariofisher_0.2_all.click',
+                          'airticketsgr.ubuderix_0.1_all.click',
+                          'com.ubuntu.developer.archen.swarm_0.0.1_amd64.click',
+                          'com.ubuntu.developer.carloalberto.randomimagesrel_0.9.3_all.click',
+                          'aliexpress.lukasmatoulek_0.3_all.click',
+                          'alditalkwebapp.yusuf75_0.1_all.click',
+                          'add-to-flipboard.sofocles_0.4.1_all.click',
+                          'com.ubuntu.developer.flscogna.ubuntu-netwalk_0.9.2_armhf.click',
+                          'com.ubuntu.developer.kumarasinghe.workmate_0.1.1_all.click',
+                          'askunofficialwebapp.miguelangelar_0.2_all.click',
+                          'com.ubuntu.developer.boghison.mixcloud_0.2_armhf.click',
+                          'com.ubuntu.developer.joshua-strobl.outlook_1.2_all.click',
+                          'com.ubuntu.developer.kpeignot.banquepop_0.2_all.click',
+                          'com.ubuntu.developer.jan.litewrite_0.1.2_all.click',
+                          'com.ubuntu.developer.daker.bytesjack_0.1_all.click',
+                          'com.haveaswiss.sterling.tolley.template_2.0.1_all.click',
+                          'com.ubuntu.developer.1bsyl.ballon_1.01_armhf.click',
+                          'com.ubuntu.developer.annikaberger.geldliste_1.13_unknown.click',
+                          'com.ubuntu.developer.anton.maminov.webapp-vk_1.0_all.click',
+                          'coggle.cgaenzler_0.1_all.click',
+                          'com.ubuntu.developer.danielholm.freeciv_1.2_all.click',
+                          'com.ubuntu.camera_3.0.0.604_armhf.click',
+                          'com.ubuntu.developer.cwayne18.untappd_1.0.10_armhf.click',
+                          'com.ubuntu.developer.1bsyl.negative-space_1.02_armhf.click',
+                          'com.ubuntu.developer.1bsyl.demineur_1.01_armhf.click',
+                          'com.canonical.scopes.food_0.4.9_armhf.click',
+                          'com.ubuntu.developer.joshua-strobl.onedrive_1.0_all.click',
+                          'com.ubuntu.developer.kalikiana.winamp2_0.1_all.click',
+                          'com.gmail.haf.amine.dz.40nawawi.40nawawi_0.1.0_all.click',
+                          'com.ubuntu.developer.cwayne18.xkcd_0.1_armhf.click',
+                          'anime.corack117_0.1_all.click',
+                          'com.ubuntu.developer.1bsyl.mahjong_1.01_armhf.click',
+                          'com.ubuntu.developer.karthik.upadya1.remindme_0.1.0_all.click',
+                          'airbnbunofficial.andrea-il-lord_0.1_all.click',
+                          'com.canonical.scopes.pptv_1.7.1_armhf.click',
+                          'com.ubuntu.developer.deepakkumardalai.ebay-india_0.2_all.click',
+                          'com.ubuntu.calendar_0.4.732_all.click',
+                          'com.ubuntu.developer.1bsyl.freecell_1.01_armhf.click',
+                          'com.ubuntu.developer.cwayne18.aroscontrol_0.2_armhf.click',
+                          'com.ubuntu.shorts_0.2.412_multi.click',
+                          'alieninvasion.johandoe1960_0.2_all.click',
+                          'com.popey.youtube_0.7_all.click',
+                          'com.canonical.scopes.movies_0.4.3_armhf.click',
+                          'allgemeine-zeitung.michael-weimann-eu_1.0_all.click',
+                          'com.ubuntu.developer.kalikiana.irccloud_0.1_all.click',
+                          'com.popey.osm_0.8_all.click',
+                          'com.ubuntu.developer.byagcioglu.blender-turkiye_0.4_all.click',
+                          'com.ubuntu.developer.kiwinote.yesorno_0.1.1_all.click',
+                          'com.and.maps_0.5_all.click',
+                          'com.ubuntu.developer.jonobacon.sleepytime_0.4_unknown.click',
+                          'aladin.michal-valdman_0.1_all.click',
+                          'com.ubuntu.developer.fcole90.hexgl_1.2_all.click',
+                          'com.ubuntu.developer.cwayne18.urbandict_1.0.8_armhf.click',
+                          'com.ubuntu.developer.dave.french3.metricceilinggridcalculator_0.11_all.click',
+                          'com.ubuntu.developer.cwayne18.renren_2.0_all.click',
+                          'com.ubuntu.developer.daker.imgur_0.2_all.click',
+                          'com.ubuntu.developer.daker.baboom_0.3_all.click',
+                          'aquehorapasa.pcapeluto_0.1_all.click',
+                          'com.ubuntu.developer.joshua-strobl.recode_1.0_all.click',
+                          'com.ubuntu.developer.danielholm.tradera_0.1_all.click',
+                          'arstechnicascope.noise_0.1_armhf.click',
+                          'com.canonical.scopes.eljueves_1.3_armhf.click',
+                          'com.ubuntu.developer.dholbach.webapp-mixcloud_0.4_all.click',
+                          'com.popey.giffgaff_0.6_all.click',
+                          'anarchopediaunoffici.andrea-il-lord_0.1_all.click',
+                          'com.ubuntu.developer.georgebahry.keep_0.2.2_all.click',
+                          'com.ubuntu.developer.drewcode2.popularsearchengines_2.0_all.click',
+                          'com.ubuntu.developer.ken-vandine.hangonman_0.0.6_all.click',
+                          'com.nokia.heremaps_1.0.7_all.click',
+                          'antimoskitos.yoanncooljazz_0.1_all.click',
+                          'com.ubuntu.developer.ematirov.emtranslate_0.1.1.1_all.click',
+                          'com.ubuntu.calendar_0.4.728_all.click',
+                          'com.dailymotion.webapp_1.0.2_all.click',
+                          'com.canonical.scopes.instagram_1.0.17_armhf.click',
+                          'com.ubuntu.developer.deepakkumardalai.moneycontrol_0.1_all.click',
+                          'com.ubuntu.developer.1bsyl.spider_1.04_armhf.click',
+                          'com.fiabee.ubuntu.fiabee-webapp_0.1_all.click',
+                          'com.ubuntu.developer.daker.x-type_0.5_all.click',
+                          'com.canonical.scopes.baidunews_0.5_armhf.click',
+                          'coinbase.easytechanswers_0.11_all.click',
+                          'com.ubuntu.developer.kpeignot.dauphinelibere_0.3_all.click',
+                          'aftonbladetunofficia.johandoe1960_0.1_all.click',
+                          'com.ubuntu.developer.deepakkumardalai.erail_0.1_all.click',
+                          'com.booking.ubuntu-mdot-webapp_0.4_all.click',
+                          'circle-message.mivoligo_0.4_all.click',
+                          'angolotestiunofficia.andrea-il-lord_0.1_all.click',
+                          'com.popey.nationalrail_0.8_all.click',
+                          'com.ubuntu.developer.eric.david.sage.twenty-timer_0.3_all.click',
+                          'com.ubuntu.developer.georgebahry.drive_0.2.2_all.click',
+                          'animalliberationfron.andrea-il-lord_0.1_all.click',
+                          'com.ubuntu.developer.1bsyl.reversi_1.01_armhf.click',
+                          'com.ubuntu.developer.fabricio.mnmo-counters_0.5.7_unknown.click',
+                          'aeroflotrussia.anneonyme017_0.1_all.click',
+                          'bloomberg.punkette_0.1_all.click',
+                          'com.canonical.scopes.dashboard_4.0.1_armhf.click',
+                          'com.ubuntu.developer.danielholm.pingpong_2.0_all.click',
+                          'com.ubuntu.developer.jani.monoses.railroad_0.1.2_all.click',
+                          'agorapirata.guybrush_0.1_all.click',
+                          'com.ubuntu.developer.jdebaru.longbow_0.1.3_all.click',
+                          'com.ubuntu.developer.boghison.torrentsmd_1.2_all.click',
+                          'aussieweather.mreese_0.9_all.click',
+                          'com.ubuntu.developer.karthik.upadya1.dailykarma_0.1.2_all.click',
+                          'com.ubuntu.developer.1bsyl.morpion_1.01_armhf.click',
+                          'com.ubuntu.developer.cwayne18.meetup_1.0.5_armhf.click',
+                          'abendzeitung.yusuf75_0.1_all.click',
+                          'com.ubuntu.checkbox_1.2.1_multi.click',
+                          'com.ubuntu.developer.dromas.dtelegram_0.1.3_all.click',
+                          'com.ubuntu.music_2.2.951_all.click',
+                          'com.popey.guardian_0.40_all.click',
+                          'com.popey.bbcnews_0.13_all.click',
+                          'com.ubuntu.developer.aaronhoneycutt.gotobus_0.2_all.click',
+                          'com.ubuntu.developer.karthik.upadya1.weatherforecast_0.1.6_all.click',
+                          'cercocasaimmobiliare.sanvalentino3_0.1_all.click',
+                          'com.dsignmatters.iqfitfun_2.0.9.4_all.click',
+                          'com.ubuntu.developer.deepakkumardalai.rechargeitnow_0.1_all.click',
+                          'com.canonical.scopes.calls_1.6_armhf.click',
+                          'com.ubuntu.developer.dawndiy.smartqq_0.1.2_all.click',
+                          'com.ubuntu.developer.aaronhoneycutt.wellsfargo_0.1_all.click',
+                          'com.canonical.scopes.fitbit_1.0.40_armhf.click',
+                          'com.ubuntu.developer.fcole90.tripadvisor_1.1_all.click',
+                          'com.ubuntu.developer.kugiigi.tagatuos_1.1.2_all.click',
+                          'com.ubuntu.developer.daniel.mcguire.mets_0.7_all.click',
+                          'ageekwoman.ubuderix_0.1_all.click',
+                          'com.ubuntu.developer.jdstrand.permy_0.9_all.click',
+                          'argia.hankamotz_0.1_armhf.click',
+                          'com.ubuntu.developer.aaronhoneycutt.samesexmarriage_1.4_all.click',
+                          'com.popey.calculator_0.16.16.1_all.click',
+                          'com.ubuntu.developer.didrocks.tcl_0.1.1_all.click',
+                          'com.ubuntu.sudoku_1.1.395_all.click',
+                          'com.canonical.scopes.photos-local_1.26_armhf.click',
+                          'com.ubuntu.developer.boghison.wolframalpha_0.2_all.click',
+                          'com.canonical.scopes.news_4.0.0_armhf.click',
+                          'com.canonical.scopes.events_1.1.1_armhf.click',
+                          'coisas.emdicpere_0.1_all.click',
+                          'com.ubuntu.developer.alexlanganke.defi_0.1_all.click',
+                          'com.popey.eventbrite_0.2_all.click',
+                          'com.ubuntu.developer.arnaudober.lightoff_2.0_all.click',
+                          'com.ubuntu.developer.drewcode2.advnotes_0.2_all.click',
+                          'aliexpress.pcapeluto_0.1_all.click',
+                          'com.popey.bbcsport_0.13_all.click',
+                          'com.ubuntu.developer.danielbeck.greenmahjong_2.2.1_all.click',
+                          'clope.plop3_0.1_armhf.click',
+                          'amap.ubuntu-dawndiy_0.1_all.click',
+                          'altinn.blades_0.1_all.click',
+                          'com.ubuntu.developer.frecelto.smartfart_0.3_all.click',
+                          'alieninvasion.vocoderism_0.1_all.click',
+                          'com.ubuntu.developer.derjasper.dicer_0.1_all.click',
+                          'com.ubuntu.developer.daker.airbnb_0.2_all.click',
+                          'com.ubuntu.developer.cwayne18.baidu_2.0_all.click',
+                          'com.ubuntu.developer.geistschatten.social-groovy_0.5_all.click',
+                          'aptnwebapp.tungilikmacdonald_0.1_all.click',
+                          'com.ubuntu.developer.filip-dobrocky.gagger_0.3_all.click',
+                          'com.ubuntu.developer.bobo1993324.qmltextreader_0.2_armhf.click',
+                          'com.ubuntu.clock_3.6.412_multi.click',
+                          'com.canonical.scopes.books_4.0.0_armhf.click',
+                          'com.ubuntu.developer.cwayne18.runkeeper_1.0.8_armhf.click',
+                          'comixology.pcapeluto_0.1_all.click',
+                          'clubxtrailitalia.giuseppe-giacalone_0.1_all.click',
+                          'com.ubuntu.developer.davmor2.sadtrombone_0.2_all.click',
+                          'com.ubuntu.developer.deepakkumardalai.cricinfo_0.1_all.click',
+                          'amazon-it.luigibiagi_1.1_all.click',
+                          'com.ubuntu.developer.daker.grooveshark_0.2_all.click',
+                          'com.ubuntu.developer.1bsyl.sudoku_1.01_armhf.click',
+                          'com.ubuntu.developer.daker.veetle_0.1_all.click',
+                          'com.ubuntu.developer.filip-dobrocky.uclick_1.3_all.click',
+                          'com.ubuntu.developer.diegosarmentero.tvstalker_0.3_unknown.click',
+                          'allgaeuhero.karlheinzsalver_0.1_all.click',
+                          'com.ubuntu.developer.fcole90.ilfattoquotidianowebapp_1.0_all.click',
+                          'com.ubuntu.developer.dpdmancul.infoguide_1.0.0_all.click',
+                          'com.ubuntu.developer.eric.corbu.randomizer_0.91_all.click',
+                          'com.ubuntu.developer.diegosarmentero.tabugame_0.2_unknown.click',
+                          'arte.guimli_0.1_all.click',
+                          'com.ubuntu.developer.corasaaa.webogram_0.5.1_all.click',
+                          'com.ubuntu.developer.drewcode2.headsup_0.1_all.click',
+                          'artetv.fmyrddin77_0.1_all.click',
+                          'com.ubuntu.developer.geelen-bram.reversi_1.1.3_unknown.click',
+                          'com.ubuntu.developer.cwayne18.weibo_2.0_all.click',
+                          'com.ubuntu.developer.drewcode2.lamp_0.2_all.click',
+                          'com.ubuntu.developer.dobey.delta-web_1.0.1_all.click',
+                          'com.ubuntu.developer.danielholm.stumble_0.2_all.click',
+                          'com.ubuntu.developer.kalikiana.ello_0.1_all.click',
+                          'com.ubuntu.developer.daker.steel-story_0.3_all.click',
+                          'com.ubuntu.developer.deepakkumardalai.way2sms_0.1_all.click',
+                          'com.popey.sst_1.4.2_all.click',
+                          'aerlingus.anneonyme017_0.1_all.click',
+                          'com.mikeasoft.seagullstrike_1.1.1_armhf.click',
+                          'amazon.infowaynewardcouk_0.3_all.click',
+                          'atlaseventsunofficia.andrea-il-lord_0.1.1_all.click',
+                          'com.popey.bbcweather_0.12_all.click',
+                          'arte2.a-european-guy_1.2_all.click',
+                          'com.ubuntu.developer.filip-dobrocky.chords_0.1.1_all.click',
+                          'com.ubuntu.developer.deepakkumardalai.flipkart_0.2_all.click',
+                          'com.ubuntu.developer.cbrown-z.ello_0.1_all.click',
+                          'amazonfr.jonathan_0.1_all.click',
+                          'adn.mdj_0.1_all.click',
+                          'azendoocom-zus.johan13220_0.1_all.click',
+                          'com.ubuntu.developer.karthik.upadya1.inews_0.1.0_all.click',
+                          'com.popey.forecast_0.4_all.click',
+                          'com.ubuntu.developer.1bsyl.puissance4_1.01_armhf.click',
+                          'uber-web.saviq_0.2_all.click',
+                          'com.ubuntu.developer.domhasford.tdcanada_1.0_all.click',
+                          'com.ubuntu.developer.boghison.gtranslate_1.4_all.click',
+                          'adnl.markcortbass_2.4.4_armhf.click',
+                          'com.ubuntu.developer.danielholm.coinprice_0.1.2_all.click',
+                          'com.canonical.scopes.douban_1.5.3_armhf.click',
+                          'com.ubuntu.developer.1bsyl.bubbles_1.01_armhf.click',
+                          'azlyrics.phosphoros_0.1_all.click',
+                          'com.canonical.payui_15.01.137_armhf.click',
+                          'com.canonical.scopes.youku-mv_1.4_armhf.click',
+                          'com.ubuntu.developer.karthik.upadya1.imail_0.1.6_all.click',
+                          'com.ubuntu.developer.kalikiana.speedofme_0.1_all.click',
+                          'cineblog01unofficial.andrea-il-lord_0.1_all.click',
+                          'clickthecookie.jjvannielen_0.4.2_all.click',
+                          'com.joseeantonior.ircpuzzles_0.3_all.click',
+                          'coinbase.kcrissey_2.0_all.click',
+                          'ameli-webapp.vinzjobard_0.1_all.click',
+                          'aurora.a-european-guy_0.2_all.click',
+                          'aboutyou.torstenfranz_0.1_all.click',
+                          'com.ubuntu.developer.alaak.uberbag_5.1_all.click',
+                          'com.ubuntu.developer.abreu-alexandre.webapp-instapaper_1.0.1_all.click',
+                          'com.ubuntu.developer.aaronhoneycutt.ign_0.2_all.click',
+                          'com.ubuntu.developer.elopio.xbmcwebremote_2.2.5_all.click',
+                          'amazonde.danielwolter41_0.1_all.click',
+                          'archeryduns.aurora_0.1_all.click',
+                          'com.canonical.scopes.xiami_0.1_all.click',
+                          'com.ubuntu.developer.cwayne18.nutritionix_1.0.1_armhf.click',
+                          'com.ubuntu.developer.geelen-bram.connect4_0.1.3_unknown.click',
+                          'airfoxbrowser.airfoxbrowser_0.5_all.click',
+                          'com.ubuntu.developer.ken-vandine.samegame_0.4_all.click',
+                          'com.ubuntu.developer.1bsyl.cartes_1.01_armhf.click',
+                          'com.ubuntu.developer.kumarasinghe.youtune-player_0.1.1_all.click',
+                          'autotrans.zic_0.1_all.click',
+                          'alkowebapp.thansson_0.2_all.click',
+                          'com.ubuntu.developer.kalikiana.pocket_0.1_all.click']
+
+
+class ServerTestCase(unittest.TestCase):
+
+    def setUp(self):
+        self.db_fd, server.app.config['DATABASE'] = tempfile.mkstemp()
+        server.app.config['TESTING'] = True
+        server.app.config["UPLOAD_FOLDER"] = tempfile.mkdtemp(prefix="marvin-")
+        server.app.config["CLAIM_SECRETS"] = ["testing"]
+        self.app = server.app.test_client()
+
+        # ensure that we have a legit device
+        self.app.get("/claim?device=ubuntu_phone&claim_secret=testing")
+
+    def tearDown(self):
+        os.close(self.db_fd)
+        os.unlink(server.app.config['DATABASE'])
+        shutil.rmtree(server.app.config["UPLOAD_FOLDER"])
+
+    def test_front_page_works(self):
+        resp = self.app.get('/')
+        assert 'Test Ubuntu click packages' in resp.data
+
+    def upload(self, click_contents="", click_name="example.sil_0.1_all.click", email="nope@example.com", devices=None):
+        data = {
+            "click": (StringIO(click_contents), click_name),
+            "email": email
+        }
+        if devices:
+            for d in devices:
+                data["device_%s" % d] = "on"
+        return self.app.post('/upload', data=data, follow_redirects=True)
+
+    def test_upload_ok(self):
+        resp = self.upload(click_contents="", click_name="example.sil-mighty_0.1_all.click",
+                           email="nope@example.com", devices=["ubuntu_phone"])
+        assert "waiting for a device to be free" in resp.data
+
+    def test_upload_bad_names(self):
+        bad_names = [
+            "no", "", "no.txt", "foo.sil_0.1_all.clic", "foo_all.click"]
+        for name in bad_names:
+            resp = self.upload(click_name=name)
+            assert "seem to be a legitimate click package" in resp.data, name
+
+    def test_upload_good_names(self):
+        # We expect these to fail because they don't specify a device, but they should all pass the name check
+        for name in ACCEPTABLE_CLICK_NAMES:
+            resp = self.upload(click_name=name, devices=[])
+            assert "specify at least one device" in resp.data, name
+
+    def test_upload_bad_email(self):
+        resp = self.upload(email="no")
+        assert "valid email address" in resp.data
+
+    def test_good_but_disallowed_name(self):
+        # This is technically allowed as a click name, but Marvin is going to disallow it
+        resp = self.upload(click_name='com.ubuntu.developer.dgalg.wordchain-0.4.click')
+        assert "seem to be a legitimate click package" in resp.data, name
+
+if __name__ == '__main__':
+    unittest.main()
