@@ -18,7 +18,7 @@ TMPDIR=$(mktemp -d)
 TARGETUSER="phablet"
 TARGET="/home/$TARGETUSER"
 HERE=$(pwd)
-SERVERHOST="http://marvin.popey.com"
+SERVERHOST=$6
 
 echo $(date +%Y-%m-%d-%H%M%S) $CLICK_URL
 echo $(date +%Y-%m-%d-%H%M%S) $DEVICEID

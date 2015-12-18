@@ -55,19 +55,20 @@ sys.excepthook = sendWorkerErrorEmail
 def do_provision(device):
     provision.provision(device, network_file=os.path.expanduser("~/.ubuntu-ci/wifi.conf"))
 
-def do_checks(params, job):
+def do_checks(params, job, server):
     resultsdir = tempfile.mktemp(prefix="tmp")
     print "Checking click package"
-    runchecks_cmd = "./runchecks " + job["click"] + " " + params[0] + " " + params[1] + " " + params[2] + " " + resultsdir
+    #runchecks_cmd = "./runchecks " + job["click"] + " " + params[0] + " " + params[1] + " " + params[2] + " " + resultsdir + " " + server
+    runchecks_cmd = ["/bin/bash", "./runchecks", job["click"], params[0], params[1], params[2], resultsdir, server]
     print runchecks_cmd
-    checkresult = subprocess.call(runchecks_cmd, shell=True)
+    checkresult = subprocess.call(runchecks_cmd)
     if checkresult == 0:
         success = True
     else:
         success = False
     return success, checkresult, {"resultsdir": resultsdir}
 
-def do_test(params, job):
+def do_test(params, job, server):
     resultsdir = tempfile.mktemp(prefix="tmp")
     print "****************** Actually running the test."
     print "* Data passed to run this job *"
@@ -79,6 +80,8 @@ def do_test(params, job):
     # We pass the url to the click, device serial number and type and orientation
     # e.g. ./runtest /click/20151126103906-PLBRWIBL9X 0050aba613958223 mako portait /tmp/foo Nexus 4
     runtest_cmd = "./runtest " + job["click"] + " " + params[0] + " " + params[1] + " " + params[2] + " " + resultsdir + " " + args.device.replace(" ", "_")
+    # I think that this command below should work, but I have not enabled it
+    #runtest_cmd = ["/bin/bash", "./runtest", job["click"], params[0], params[1], params[2], resultsdir, args.device.replace(" ", "_")]
     print runtest_cmd
     testresult = subprocess.call(runtest_cmd, shell=True)
     if testresult == 0:
@@ -86,6 +89,12 @@ def do_test(params, job):
     else:
         success = False
     return success, testresult, {"resultsdir": resultsdir}
+
+def fake_do_test(params, job, server):
+    print "****************** Not running the test, but pretending to"
+    resultsdir = tempfile.mktemp(prefix="tmp")
+    os.makedirs(resultsdir)
+    return True, 0, {"resultsdir": resultsdir}
 
 def send_email(from_address, from_name, from_password, to_addresses, subject, text_body, html_body, attached_files=None):
     # Create the email
@@ -232,9 +241,9 @@ def get_job(server, device):
     if not data.get("job"): return
     return data
 
-wait_time = 1
+wait_time = 10
 
-def check_forever(server, device, test_params):
+def check_forever(server, device, test_params, actually_test=True):
     global wait_time
     while 1:
         try:
@@ -246,23 +255,29 @@ def check_forever(server, device, test_params):
                 # comes back
                 time.sleep(wait_time)
                 wait_time = wait_time * 1.4
-                if wait_time > 250: wait_time = 250
+                if wait_time > 60: wait_time = 60
                 continue
             print "Got job %s; executing." % (job,)
             checksuccess = testsuccess = True
-            checksuccess, checkresult, results = do_checks(params=test_params, job=job)
+            checksuccess, checkresult, results = do_checks(params=test_params, job=job, server=server)
             if checksuccess:
                 # Checks pass, lets test the app
-                testsuccess, testresult, results = do_test(params=test_params, job=job)
+                if actually_test:
+                    testsuccess, testresult, results = do_test(params=test_params, job=job, server=server)
+                else:
+                    testsuccess, testresult, results = fake_do_test(params=test_params, job=job, server=server)
                 if testsuccess:
                     # loop around immediately: success means "we did the job OK and am ready"
                     print "Job successfully executed. Releasing job."
                     release_job(server, job)
-                    deal_with_results(job, results, 0)
+                    if actually_test:
+                        deal_with_results(job, results, 0)
+                    else:
+                        print "Not actually emailing the results out"
                     # Lets see what happens if we don't re-provision after each
                     # succcessful run
                     # do_provision(device=args.params[0])
-                    wait_time = 1
+                    wait_time = 10
                 else:
                     # If we got a return code > 1 then we know the issue
                     # If it's 1 then we don't and should mark it a fail
@@ -278,10 +293,10 @@ def check_forever(server, device, test_params):
                         failed_job(server,job)
                         # Email the user
                         deal_with_results(job, results, testresult)
-                        wait_time = 1
+                        wait_time = 10
             else:
                 # Checks failed
-                wait_time = 1
+                wait_time = 10
                 if checkresult == 1:
                 # If we get some unknown error, retry up to N times by unclaiming
                     if job["metadata"]["failures"] > 5:
@@ -304,13 +319,13 @@ def check_forever(server, device, test_params):
             sendWorkerErrorEmail(*sys.exc_info())
             time.sleep(wait_time)
             wait_time = wait_time * 1.4
-            if wait_time > 250: wait_time = 250
+            if wait_time > 60: wait_time = 60
         print "Worker running again"
 
 def hup(signum, stack):
     global wait_time
-    wait_time = 1
-    print "Got sent SIGHUP; resetting wait_time to 1"
+    wait_time = 10
+    print "Got sent SIGHUP; resetting wait_time to 10"
 
 if __name__ == "__main__":
     print "Worker starting up..."
@@ -328,9 +343,16 @@ if __name__ == "__main__":
     parser.add_argument('--provision', dest='prov',
         help='To force provisioning already been provisioned',
         required=False, action='store_true')
+    parser.add_argument('--no-test', dest='test',
+        help='Don\'t actually run the tests (use when you don\'t have a device attached)',
+        required=False, action='store_false')
+    parser.add_argument('--test', dest='test',
+        help='Do actually run the tests (default)',
+        required=False, action='store_false')
     parser.set_defaults(prov=False)
+    parser.set_defaults(test=True)
     args = parser.parse_args()
     print args
     if args.prov:
         do_provision(device=args.params[0])
-    check_forever(args.server, args.device, args.params)
+    check_forever(args.server, args.device, args.params, args.test)
