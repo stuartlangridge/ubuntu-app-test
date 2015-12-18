@@ -4,10 +4,7 @@
 
     virtualenv ./venv
     source ./venv/bin/activate
-    pip install Flask
-    pip install supervisor
-    pip install uwsgi
-    pip install validate_email
+    pip install -r requirements.txt
 
 ## running the server
 
