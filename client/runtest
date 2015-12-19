@@ -2,23 +2,34 @@
 # Get click and test it
 # $1 is click url
 # $2 is device serial number
-# e.g. ./runtest /click/20151126103906-PLBRWIBL9X 0050aba613958223 mako portait /tmp/foo
+# $3 is device type (mako/flo/arale/krillin)
+# $4 is orientation (portrait or landscape)
+# $5 is temporary directory
+# $6 is the hostname of the server
+# $7 is the friendly name of the device "Nexus 4 Portrait"
+# e.g. ./runtest /click/20151126103906-PLBRWIBL9X 0050aba613958223 mako portait /tmp/foo marvin.popey.com Nexus_4_Portrait
 # rc2 = Click package contains errors, please see log
 # rc6 = Click package couldn't be pushed to device
 # rc7 = Click package couldn't be installed
 # rc8 = Click review aborted
+# rc10 = Incorrect number of parameters passed to test script
+
+if [[ "$#" -ne 7 ]]; then
+    echo "Insufficient parameters passed to runtest script"
+    exit 10
+fi
 
 CLICK_URL=$1
 DEVICEID=$2
 DEVICE_TYPE=$3
 ORIENTATION=$4
 RESULTSDIR=$5
-FRIENDLYNAME=$(echo $6 | tr " " "_")
+SERVERHOST=$6
+FRIENDLYNAME=$(echo $7 | tr " " "_")
 TMPDIR=$(mktemp -d)
 TARGETUSER="phablet"
 TARGET="/home/$TARGETUSER"
 HERE=$(pwd)
-SERVERHOST="http://marvin.popey.com"
 
 function dedupe {
   # This needs to be more robust. Images rarely pass this.

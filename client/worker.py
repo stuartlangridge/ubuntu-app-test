@@ -79,7 +79,7 @@ def do_test(params, job, server):
     print "****************** Which should move to this python script ASAP"
     # We pass the url to the click, device serial number and type and orientation
     # e.g. ./runtest /click/20151126103906-PLBRWIBL9X 0050aba613958223 mako portait /tmp/foo Nexus 4
-    runtest_cmd = "./runtest " + job["click"] + " " + params[0] + " " + params[1] + " " + params[2] + " " + resultsdir + " " + args.device.replace(" ", "_")
+    runtest_cmd = "./runtest " + job["click"] + " " + params[0] + " " + params[1] + " " + params[2] + " " + resultsdir + " " + server + " " + args.device.replace(" ", "_")
     # I think that this command below should work, but I have not enabled it
     #runtest_cmd = ["/bin/bash", "./runtest", job["click"], params[0], params[1], params[2], resultsdir, args.device.replace(" ", "_")]
     print runtest_cmd
@@ -162,6 +162,8 @@ def deal_with_results(job, results, checkresult):
         supplementaltext = "There was a problem running the click-review tool aainst the click package. Testing cannot continue."
     elif checkresult == 9:
         supplementaltext = "There was a problem unpacking the click package provided. Testing cannot continue."
+    elif checkresult == 10:
+        supplementaltext = "There was an internal error calling check/test scripts."
     upload_files = [os.path.join(results["resultsdir"], x) for x in os.listdir(results["resultsdir"])]
     upload_files = [x for x in upload_files if os.path.isfile(x)]
     print job["metadata"]["email"]
