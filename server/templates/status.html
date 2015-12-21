@@ -15,7 +15,7 @@
 <h1>Status of your test</h1>
 <ul>
 {% for item in metadata.devices %}
-    <li>{{ item.printable|e }}: <strong class="{{ item.status|e }}">{{ item.status|e }}</strong><br><br><em>{{ descriptions.get(item.status, "") }}</li>
+    <li>{{ item.printable|e }}: <strong class="{{ item.status|e }}">{{ item.status|e }}</strong><br><br><em>{{ descriptions.get(item.status, "") }}</em></li>
 {% endfor %}
 </ul>
 {% if not completed %}
