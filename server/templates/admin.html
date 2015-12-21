@@ -114,10 +114,10 @@ function tick() {
             s = Math.round(diff / 60 / 60) + " hours ago";
         } else if (diff < 60 * 60 * 28) {
             s = "A day ago";
-        } else if (diff < 60 * 60 * 24 * 6) {
+        } else if (diff < 60 * 60 * 24 * 14) {
             s = Math.round(diff / 60 / 60 / 24) + " days ago";
         } else {
-            s = Math.round(diff / 60 / 60 / 7) + " weeks ago";
+            s = Math.round(diff / 60 / 60 / 24 / 7) + " weeks ago";
         }
         time.innerHTML = s;
         var aging = Math.min(diff, 60*60*24*7) / (60*60*24*7);
