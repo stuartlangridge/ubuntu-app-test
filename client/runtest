@@ -31,6 +31,15 @@ TARGETUSER="phablet"
 TARGET="/home/$TARGETUSER"
 HERE=$(pwd)
 
+function get_filelist {
+  echo $(date +%Y-%m-%d-%H%M%S) "Gathering file list"
+  # Derive installdir name
+  echo $LAUNCH
+  INSTALLDIR=$(echo $LAUNCH | awk -F '_' '{ print $1}')
+  echo $INSTALLDIR
+  adb -s $DEVICEID shell find /opt/click.ubuntu.com/$INSTALLDIR/ > $RESULTSDIR/installed_files.txt
+}
+
 function dedupe {
   # This needs to be more robust. Images rarely pass this.
   echo $(date +%Y-%m-%d-%H%M%S) "Comparing $1 and $2"
@@ -187,6 +196,8 @@ else
       pause 1
       # Trim desktop filename
       LAUNCH=$(basename $DESKTOP | sed 's/.desktop//')
+      # Get installed file list
+      get_filelist
       # shut off the network
       adb -s $DEVICEID shell nmcli n off
       # Screenshot the app scope (should be on screen by default) so the dev sees their icon/text
