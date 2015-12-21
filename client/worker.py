@@ -174,7 +174,7 @@ def deal_with_results(job, results, checkresult):
         "filename": job["metadata"]["filename"],
         "submitted": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(job["metadata"]["time"])),
         "supplemental": supplementaltext,
-        "runidString": (" (test run '%s')" % job["metadata"]["runid"]) if job["metadata"].get("runid") else ""
+        "runidString": (" (%s)" % job["metadata"]["runid"]) if job["metadata"].get("runid") else ""
     }
     text_body = (
         "Here are the results of Marvin running %(filename)s%(runidString)s, "
