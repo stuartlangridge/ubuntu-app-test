@@ -34,10 +34,21 @@ HERE=$(pwd)
 function get_filelist {
   echo $(date +%Y-%m-%d-%H%M%S) "Gathering file list"
   # Derive installdir name
-  echo $LAUNCH
-  INSTALLDIR=$(echo $LAUNCH | awk -F '_' '{ print $1}')
-  echo $INSTALLDIR
-  adb -s $DEVICEID shell find /opt/click.ubuntu.com/$INSTALLDIR/ > $RESULTSDIR/installed_files.txt
+  adb -s $DEVICEID shell find /opt/click.ubuntu.com/$APP_ID/ > $RESULTSDIR/installed-files.txt
+}
+
+function get_appfiles {
+  echo $(date +%Y-%m-%d-%H%M%S) "Gathering application files"
+  mkdir -p $RESULTSDIR/appfiles/.local/share/$APP_ID
+  mkdir -p $RESULTSDIR/appfiles/.config/$APP_ID
+  mkdir -p $RESULTSDIR/appfiles/.cache/$APP_ID
+  adb -s $DEVICEID pull $TARGET/.local/share/$APP_ID $RESULTSDIR/appfiles/.local/share/$APP_ID
+  adb -s $DEVICEID pull $TARGET/.config/$APP_ID $RESULTSDIR/appfiles/.config/$APP_ID
+  adb -s $DEVICEID pull $TARGET/.cache/$APP_ID $RESULTSDIR/appfiles/.config/$APP_ID
+  pushd $RESULTSDIR/appfiles
+  zip -r $RESULTSDIR/$LAUNCH-application-files.zip .local .cache .config
+  popd
+  rm -rf $RESULTSDIR/appfiles
 }
 
 function dedupe {
@@ -106,13 +117,16 @@ function screen_grab {
   rm $RESULTSDIR/screenshot.rgba
 }
 
-function get_logs {
+function get_system_logs {
   # Get data about the version of ubuntu on the device
   adb -s $DEVICEID shell "system-image-cli --info" > $RESULTSDIR/device-version.txt
-  # Get the application log
-  adb -s $DEVICEID pull $TARGET/.cache/upstart/application-click-$LAUNCH.log $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-application-log.txt
   # Get kernel output associated with the app
   adb -s $DEVICEID shell "sudo dmesg -T | grep $LAUNCH" > $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-dmesg.txt
+}
+
+function get_app_logs {
+  # Get the application log
+  adb -s $DEVICEID pull $TARGET/.cache/upstart/application-click-$LAUNCH.log $RESULTSDIR/$LAUNCH-$FRIENDLYNAME-application-log.txt
 }
 
 echo $(date +%Y-%m-%d-%H%M%S) $CLICK_URL
@@ -196,6 +210,8 @@ else
       pause 1
       # Trim desktop filename
       LAUNCH=$(basename $DESKTOP | sed 's/.desktop//')
+      # Trip launch to get APP_ID
+      APP_ID=$(echo $LAUNCH | awk -F '_' '{ print $1}')
       # Get installed file list
       get_filelist
       # shut off the network
@@ -251,8 +267,12 @@ else
         # Switch away from scope
         adb -s $DEVICEID shell "dbus-send --print-reply --dest=com.canonical.URLDispatcher /com/canonical/URLDispatcher com.canonical.URLDispatcher.DispatchURL string:'scope://com.canonical.scopes.click' string:''"
       fi
-      # Get logs
-      get_logs
+      # Get app specific logs
+      get_app_logs
+      # Get system logs
+      get_system_logs
+      # Zip up the application data files
+      get_appfiles
       # Remove any click packages remaining (clean up after our app)
       adb -s $DEVICEID shell click list |  cut -f1 -d"	" | while read line
       do
@@ -262,21 +282,21 @@ else
       done
       # Refresh app scope
       adb -s $DEVICEID shell dbus-send /com/canonical/unity/scopes com.canonical.unity.scopes.InvalidateResults string:clickscope
-
       # Clean up app data and logs created by the app
-      CONFDIR=$(echo $LAUNCH | awk -F '_' '{ print $1 }')
+      echo $(date +%Y-%m-%d-%H%M%S) "Deleting .cache dir"
+      adb -s $DEVICEID shell rm -rf $TARGET/.cache/$APP_ID*
       echo $(date +%Y-%m-%d-%H%M%S) "Deleting .local share dir"
-      adb -s $DEVICEID rm -rf $TARGET/.local/share/$CONFDIR*
+      adb -s $DEVICEID shell rm -rf $TARGET/.local/share/$APP_ID*
       echo $(date +%Y-%m-%d-%H%M%S) "Deleting .config dir"
-      adb -s $DEVICEID rm -rf $TARGET/.config/$CONFDIR*
+      adb -s $DEVICEID shell rm -rf $TARGET/.config/$APP_ID*
       echo $(date +%Y-%m-%d-%H%M%S) "Deleting QML Cache"
-      adb -s $DEVICEID rm -rf $TARGET/.cache/QML/Apps/$CONFDIR*
+      adb -s $DEVICEID shell rm -rf $TARGET/.cache/QML/Apps/$APP_ID*
       echo $(date +%Y-%m-%d-%H%M%S) "Deleting application log"
       adb -s $DEVICEID shell rm $TARGET/.cache/upstart/application-click-$LAUNCH.log
       echo $(date +%Y-%m-%d-%H%M%S) "Clearing kernel ring buffer"
-      adb -s $DEVICEID sudo dmesg -C
+      adb -s $DEVICEID shell sudo dmesg -C
       echo $(date +%Y-%m-%d-%H%M%S) "Forcing logrotate"
-      adb -s $DEVICEID start logrotate
+      adb -s $DEVICEID shell start logrotate
 
       # Restore state of device so display goes off between tests (if there's time)
       # Turn on screen time out of 1 min
