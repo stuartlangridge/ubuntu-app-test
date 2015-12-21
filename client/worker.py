@@ -177,12 +177,12 @@ def deal_with_results(job, results, checkresult):
         "runidString": (" (test run '%s')" % job["metadata"]["runid"]) if job["metadata"].get("runid") else ""
     }
     text_body = (
-        "Please find attached the results of Marvin running %(filename)s%(runidString)s, "
+        "Here are the results of Marvin running %(filename)s%(runidString)s, "
         "submitted %(submitted)s: \r\n\r\n%(supplemental)s") % email_params
     html_body = (
-        "<html><body>Please find attached the results of Marvin running %(filename)s%(runidString)s, "
+        "<html><body>Here are the results of Marvin running %(filename)s%(runidString)s, "
         "submitted %(submitted)s: \r\n\r\n%(supplemental)s") % email_params
-    subject = job["metadata"]["filename"] + " results from Marvin " + email_params["runidString"]
+    subject = job["metadata"]["filename"] + " test result " + email_params["runidString"]
     send_email(
         from_address=creds["username"],
         from_name=creds.get("name"),
