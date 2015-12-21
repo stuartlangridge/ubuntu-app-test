@@ -69,7 +69,8 @@
 {% for item in queue %}
     <tr class="{% if item.cleanupable %}cleanupable{% endif %}">
         <td sorttable_customkey="{{item.dt}}">{{item.dta|safe}} <time data-timestamp="{{item.dt}}"></time></td>
-        <td class="filename"><a href="/click/{{item.uid}}">{{item.metadata.filename}}</a></td>
+        <td class="filename"><a href="/click/{{item.uid}}">{{item.metadata.filename}}</a>
+        {% if item.metadata.runid %}({{item.metadata.runid}}){% endif %}</td>
         <td>{{item.metadata.email}}</td>
         <td>
             <ul>

@@ -182,12 +182,13 @@ def deal_with_results(job, results, checkresult):
     html_body = (
         "<html><body>Please find attached the results of Marvin running %(filename)s%(runidString)s, "
         "submitted %(submitted)s: \r\n\r\n%(supplemental)s") % email_params
+    subject = job["metadata"]["filename"] + " results from Marvin " + email_params["runidString"]
     send_email(
         from_address=creds["username"],
         from_name=creds.get("name"),
         from_password=creds["password"],
         to_addresses=[job["metadata"]["email"]],
-        subject=job["metadata"]["filename"] + " results from Marvin ",
+        subject=subject,
         text_body=text_body,
         html_body=html_body,
         attached_files=upload_files
