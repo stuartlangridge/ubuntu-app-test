@@ -88,13 +88,14 @@ def do_test(params, job, server):
         success = True
     else:
         success = False
-    return success, testresult, {"resultsdir": resultsdir}
+    return success, testresult, {"resultsdir": resultsdir, 
+        "screenshot_count": len([x for x in os.listdir(resultsdir) if x.endswith(".png")])}
 
 def fake_do_test(params, job, server):
     print "****************** Not running the test, but pretending to"
     resultsdir = tempfile.mktemp(prefix="tmp")
     os.makedirs(resultsdir)
-    return True, 0, {"resultsdir": resultsdir}
+    return True, 0, {"resultsdir": resultsdir, "screenshot_count": 3}
 
 def send_email(from_address, from_name, from_password, to_addresses, subject, text_body, html_body, attached_files=None):
     # Create the email
@@ -198,15 +199,19 @@ def deal_with_results(job, results, checkresult):
 # Parts that can be left alone
 ############################################################################################
 
-def add_claim_secret(url):
+def add_to_url(url, key, value):
     parts = list(urlparse.urlparse(url))
     qs = urlparse.parse_qsl(parts[4])
-    qs.append(("claim_secret", claim_secret))
+    qs.append((key, value))
     parts[4] = urllib.urlencode(qs)
     return urlparse.urlunparse(parts)
 
-def release_job(server, job):
+def add_claim_secret(url):
+    return add_to_url(url, "claim_secret", claim_secret)
+
+def release_job(server, job, screenshot_count):
     url = add_claim_secret(job["finished"])
+    url = add_to_url(url, "screenshot_count", screenshot_count)
     fp = urllib.urlopen(urlparse.urljoin(server, url))
     data = json.load(fp)
     fp.close()
@@ -272,7 +277,7 @@ def check_forever(server, device, test_params, actually_test=True):
                 if testsuccess:
                     # loop around immediately: success means "we did the job OK and am ready"
                     print "Job successfully executed. Releasing job."
-                    release_job(server, job)
+                    release_job(server, job, results.get("screenshot_count", 0))
                     if actually_test:
                         deal_with_results(job, results, 0)
                     else:

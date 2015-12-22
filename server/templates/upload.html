@@ -5,6 +5,7 @@
 <style type="text/css">
     .important { color: #336699; }
     h1 { font-size: 180%; margin: 1.5em 0; }
+    .shots { text-align: center; }
 </style>
 {% endblock %}
 {% block content %}
@@ -28,6 +29,7 @@
     <p><label>Optional name for this test run: <input type="text" name="runid"></label></p>
     <p><input type=submit value="Upload"></p>
 </form>
+<p class="shots">{{screenshot_count}} screenshots taken for {{developer_count}} app developers</p>
 <script src="/static/gunzip.min.js"></script>
 <script src="/static/click-package-parser.js"></script>
 <script>

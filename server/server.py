@@ -57,6 +57,20 @@ def init_db(db, crs):
                 pass
             else:
                 raise e
+        try:
+            crs.execute("alter table request2device add column screenshots integer default 0")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name: screenshots" in e.message:
+                pass
+            else:
+                raise e
+        try:
+            crs.execute("alter table requests add column uid varchar")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name: uid" in e.message:
+                pass
+            else:
+                raise e
 
 ####################### utility functions
 def allowed_file(filename):
@@ -117,7 +131,21 @@ def requires_auth(f):
 @app.route("/")
 def frontpage():
     is_paused = os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], "PAUSED"))
-    return render_template("upload.html", devices=get_known_devices(), is_paused=is_paused)
+    db, crs = get_db()
+    crs.execute("select sum(screenshots) from request2device")
+    res = crs.fetchone()
+    if res and res[0]:
+        screenshot_count = res[0]
+    else:
+        screenshot_count = 0
+    crs.execute("select count(distinct email) from requests")
+    res = crs.fetchone()
+    if res and res[0]:
+        developer_count = res[0]
+    else:
+        developer_count = 0
+    return render_template("upload.html", devices=get_known_devices(), is_paused=is_paused,
+        screenshot_count=screenshot_count, developer_count=developer_count)
 
 @app.route("/about")
 def about():
@@ -251,8 +279,8 @@ def upload():
         json.dump(metadata, fp)
         fp.close()
         db, crs = get_db()
-        crs.execute("insert into requests (ip, click_filename, email) values (?,?,?)",
-            (request.remote_addr, file.filename, metadata["email"]))
+        crs.execute("insert into requests (ip, click_filename, email, uid) values (?,?,?,?)",
+            (request.remote_addr, file.filename, metadata["email"], ndir))
         requestid = crs.lastrowid
         for d in metadata["devices"]:
             crs.execute("select id from devices where printable_name = ?", (d["printable"],))
@@ -402,6 +430,29 @@ def completed(uid, device_code, resolution):
                 fp = codecs.open(ometa, mode="w", encoding="utf8")
                 json.dump(metadata, fp, indent=2)
                 fp.close()
+                screenshot_count = request.args.get("screenshot_count", 0)
+                try:
+                    screenshot_count = int(screenshot_count)
+                except:
+                    screenshot_count = None
+                if screenshot_count:
+                    db, crs = get_db()
+                    crs.execute("select id from devices where printable_name = ?", (device,))
+                    row = crs.fetchone()
+                    print "GOT DEVICE", row
+                    if row and row[0]:
+                        sql_device_id = row[0]
+                        crs.execute("select id from requests where uid = ?", (uid,))
+                        row = crs.fetchone()
+                        print "GOT REQ", row
+                        if row and row[0]:
+                            sql_request_id = row[0]
+                            crs.execute(
+                                "update request2device set screenshots = screenshots + ? where requestid = ? and deviceid = ?",
+                                (screenshot_count, sql_request_id, sql_device_id))
+                            print "UPDATED", crs.rowcount
+                            db.commit()
+
                 return json.dumps({"status": resolution}), 200, {'Content-Type': 'application/json'}
             else:
                 return json.dumps({"error": "Job not in state 'claimed' (in state '%s')" % ds["status"]}), 400, {'Content-Type': 'application/json'}
