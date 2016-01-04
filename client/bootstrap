@@ -40,6 +40,9 @@ set_friendly_name() {
 		arale)
 			FRIENDLYNAME="Meizu_MX4_Ubuntu_Edition"
 			;;
+		bacon)
+			FRIENDLYNAME="OnePlus One"
+			;;
 		*)
 			FRIENDLYNAME="Unidentified_Device"
 			;;
@@ -66,7 +69,7 @@ do
 	# the product ID in case there are specific notes to inform the user about
 	# (e.g. SDL2 is known broken on mako),
 	# the orientation, so we may have multiple divices in different orientations
-  CMD="python ./worker.py --server=$PROTOCOL$SERVERHOST --device=$FRIENDLYNAME $DEVICEID $PRODUCTID $ORIENTATION"
+  CMD="python ./worker.py --no-provision --server=$PROTOCOL$SERVERHOST --device=$FRIENDLYNAME $DEVICEID $PRODUCTID $ORIENTATION"
 	log $CMD
 	echo "Run this command in screen/tmux to start the worker"
 	echo $CMD

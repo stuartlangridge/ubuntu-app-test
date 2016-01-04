@@ -88,7 +88,7 @@ def do_test(params, job, server):
         success = True
     else:
         success = False
-    return success, testresult, {"resultsdir": resultsdir, 
+    return success, testresult, {"resultsdir": resultsdir,
         "screenshot_count": len([x for x in os.listdir(resultsdir) if x.endswith(".png")])}
 
 def fake_do_test(params, job, server):

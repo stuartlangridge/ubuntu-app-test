@@ -90,6 +90,9 @@ function screen_grab {
     grouper)
         SIZE=800x1280
         ;;
+    bacon)
+        SIZE=1080x1920
+        ;;
     *)
   esac
   CONVERTOPTS="$CONVERTOPTS"

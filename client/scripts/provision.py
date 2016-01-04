@@ -54,13 +54,15 @@ def restart_into_bootloader(device_id):
     # https://bugs.launchpad.net/ubuntu/+source/android-tools/+bug/1359488
     log("Restarting into bootloader")
     subprocess.call(["adb", "-s", device_id, "reboot", "bootloader"])
-    while 1:
-        time.sleep(30) # give it a chance to reboot
-        out = subprocess.check_output(["fastboot", "devices"])
-        if device_id in out:
-            log("Restarted into bootloader")
-            return
-        log("Device restarted but not into the bootloader; waiting and trying again")
+    return
+    # Removing this for now to assume rebooting into bootloader worked
+#    while 1:
+#        time.sleep(30) # give it a chance to reboot
+#        out = subprocess.check_output(["fastboot", "devices"])
+#        if device_id in out:
+#            log("Restarted into bootloader")
+#            return
+#        log("Device restarted but not into the bootloader; waiting and trying again")
 
 def full_flash(device_id, channel):
     log("FLASHING DEVICE")
@@ -68,6 +70,10 @@ def full_flash(device_id, channel):
     if not device_type:
         device_type = adbshell("getprop ro.product.device", device_id=device_id).strip()
     restart_into_bootloader(device_id)
+    if device_type == "bacon":
+        systemimageserver = "--server=http://system-image.ubports.com"
+    else:
+        systemimageserver = "--server=https://system-image.ubuntu.com"
 
     recovery_file = None
     # We need to distinguish between devices with no recovery images and
@@ -87,11 +93,12 @@ def full_flash(device_id, channel):
     while 1:
         try:
             #flash_cmd = ["timeout", "1800", "ubuntu-device-flash", "touch"]
-            flash_cmd = ["ubuntu-device-flash", "touch", "--serial", device_id]
+            flash_cmd = ["ubuntu-device-flash", systemimageserver, "touch",
+                "--serial", device_id]
             if recovery_file:
                 flash_cmd.append("--recovery-image=%s" % (recovery_file,))
-            flash_cmd += ["--password", phablet_password, "--bootstrap",
-                "--developer-mode", "--channel", channel]
+            flash_cmd += ["--password", phablet_password,
+                "--bootstrap", "--developer-mode", "--channel", channel]
             print flash_cmd
             subprocess.call(flash_cmd)
             break
