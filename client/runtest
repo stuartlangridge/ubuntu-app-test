@@ -81,6 +81,9 @@ function screen_grab {
     manta)
         SIZE=1600x2560
         ;;
+    krillin)
+        SIZE=540x960
+        ;;
     k95v2)
         SIZE=1152x1920
         ;;

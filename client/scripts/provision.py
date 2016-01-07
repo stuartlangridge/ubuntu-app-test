@@ -77,9 +77,9 @@ def full_flash(device_id, channel):
 
     recovery_file = None
     # We need to distinguish between devices with no recovery images and
-    # failures to download existing recovery images. Only krillin
-    # and arale have a recovery image for now.
-    if device_type in ["krillin", "arale"]:
+    # failures to download existing recovery images. Only krillin, arale
+    # and bacon have a recovery image for now.
+    if device_type in ["krillin", "arale", "bacon"]:
         try:
             os.mkdir("recovery")
         except:
