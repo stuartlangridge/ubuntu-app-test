@@ -72,9 +72,20 @@ function examine(input, file) {
             });
 
             if (!hasAtLeastOneOKArch) {
-                alert("Sorry, Marvin cannot be used to test packages with architecture: " + manifest.architecture);
-                input.value = "";
-                return;
+                var filenameArch = file.name.match(/_([A-Za-z0-9]+)\.click$/);
+                if (!filenameArch || !filenameArch[1]) {
+                    alert("That click package does not give an architecture in the filename or the manifest, and so cannot be tested");
+                    input.value = "";
+                    return;
+                } else {
+                    if (okarches.indexOf(filenameArch[1]) == -1) {
+                        alert("Sorry, Marvin cannot be used to test packages with architecture " + filenameArch[1] + " specified in the filename");
+                        input.value = "";
+                        return;
+                    } else {
+                        // We have a legit arch in the filename, and none in the manifest. This is not an error.
+                    }
+                }
             }
             if (manifest.hooks) {
                 for (var k in manifest.hooks) {
