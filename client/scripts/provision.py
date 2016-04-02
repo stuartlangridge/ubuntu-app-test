@@ -114,9 +114,11 @@ def provision(device_id, network_file=os.path.expanduser("~/.ubuntu-ci/wifi.conf
     if not os.path.exists(network_file):
         raise Exception("Network file '%s' doesn't exist" % network_file)
     full_flash(device_id, channel)
+
+    raw_input("Unlock device then press ENTER to continue.")
+
     log("SETTING UP WIFI")
     wait_for_session_up(device_id)
-    time.sleep(20)
     subprocess.call(["phablet-network", "-s", device_id, "-n", network_file])
 
     log("DISABLE WELCOME WIZARD")
@@ -125,10 +127,16 @@ def provision(device_id, network_file=os.path.expanduser("~/.ubuntu-ci/wifi.conf
     log("MAKE IMAGE WRITABLE")
     subprocess.call(["phablet-config", "-s", device_id, "writable-image", "-r", phablet_password])
 
+    raw_input("Unlock device then press ENTER to continue.")
+
     log("SETTING UP SUDO")
     set_up_sudo = ("echo %s | sudo -S bash -c 'echo phablet ALL=\(ALL\) NOPASSWD: ALL > "
         "/etc/sudoers.d/phablet && chmod 600 /etc/sudoers.d/phablet'") % (phablet_password,)
     adbshell(set_up_sudo, device_id=device_id)
+
+    log("ALLOW ADB WHEN LOCKED")
+    allow_adb_when_locked = ("sudo touch /userdata/.adb_onlock")
+    adbshell(allow_adb_when_locked, device_id=device_id)
 
     set_up_account = ("sudo dbus-send --system --print-reply --dest=org.freedesktop.Accounts "
         "/org/freedesktop/Accounts/User32011 org.freedesktop.DBus.Properties.Set "
